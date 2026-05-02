@@ -1,0 +1,2480 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Klinik-Tourenplaner</title>
+    
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#1e40af">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="apple-touch-icon" href="icon-192.png">
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script> 
+    <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css" />
+    
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mammoth@1.6.0/mammoth.browser.min.js"></script>
+    
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6;
+        }
+
+        .calculator-scroll-area {
+            overflow-y: auto;
+            height: 100%;
+            padding-bottom: 2rem;
+            max-width: 900px;
+            margin: 0 auto;
+            background-color: white;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+        }
+
+        #map-display {
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+            cursor: crosshair;
+        } 
+
+        .tab-btn {
+            flex-shrink: 0;
+            white-space: nowrap;
+            min-width: 140px;
+            cursor: pointer;
+        }
+
+        .tab-btn.active {
+            background-color: white;
+            border-top: 3px solid #1e40af;
+            color: #1e40af;
+            font-weight: 700;
+        }
+
+        .tab-btn:not(.active) {
+            background-color: #e5e7eb;
+            color: #6b7280;
+        }
+
+        /* Sorgt dafür, dass die Reiterleiste horizontal scrollbar ist */
+        #tabs-header {
+            display: flex;
+            overflow-x: auto;
+            overflow-y: hidden;
+            white-space: nowrap;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: auto; /* Firefox */
+            -ms-overflow-style: auto;  /* IE 10+ */
+            padding-bottom: 6px;
+        }
+
+        #tabs-header::-webkit-scrollbar {
+            height: 8px; /* Chrome, Safari, Opera */
+        }
+        #tabs-header::-webkit-scrollbar-track {
+            background: #e5e7eb;
+            border-radius: 4px;
+        }
+        #tabs-header::-webkit-scrollbar-thumb {
+            background: #9ca3af;
+            border-radius: 4px;
+        }
+        #tabs-header::-webkit-scrollbar-thumb:hover {
+            background: #6b7280;
+        }
+
+        .drag-handle {
+            cursor: grab;
+            color: #d1d5db;
+        }
+
+        /* Status-Farben */
+        .status-urgent { border-left: 8px solid #ef4444 !important; } 
+        .status-soon { border-left: 8px solid #f59e0b !important; }   
+        .status-relaxed { border-left: 8px solid #10b981 !important; } 
+        
+        .anreise-card { 
+            border-left: 8px solid #f97316 !important; 
+            background-color: #ffedd5 !important;
+            border-color: #fdba74 !important;
+        }
+
+        .bg-wegpunkt {
+            background-color: #ecfdf5 !important;
+            border-color: #059669 !important;
+            border-left: 8px solid #059669 !important;
+        }
+
+        .route-selector-container {
+            display: flex;
+            background-color: #e5e7eb;
+            padding: 2px;
+            border-radius: 8px;
+            gap: 2px;
+        }
+        .route-opt {
+            flex: 1;
+            text-align: center;
+            padding: 4px 2px;
+            font-size: 9px;
+            font-weight: 800;
+            text-transform: uppercase;
+            cursor: pointer;
+            border-radius: 6px;
+            transition: all 0.2s;
+            color: #6b7280;
+        }
+        .route-opt.active {
+            background-color: white;
+            color: #1e40af;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        .route-comparison-row {
+            display: grid;
+            grid-template-columns: 80px 1fr;
+            gap: 8px;
+            padding: 4px 8px;
+            border-radius: 6px;
+            margin-bottom: 2px;
+            font-size: 10px;
+        }
+        .route-comparison-row.active {
+            background-color: #eff6ff;
+            border: 1px solid #bfdbfe;
+            font-weight: bold;
+        }
+
+        /* View Toggle Styles */
+        .view-switch-container {
+            display: flex;
+            justify-content: center;
+            padding: 8px 0;
+            background-color: white;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        .view-switch {
+            display: flex;
+            background: #f3f4f6;
+            padding: 2px;
+            border-radius: 9999px;
+            border: 1px solid #d1d5db;
+            width: 240px;
+        }
+        .view-switch button {
+            flex: 1;
+            padding: 6px 12px;
+            border-radius: 9999px;
+            font-size: 10px;
+            font-weight: 900;
+            text-transform: uppercase;
+            transition: all 0.2s;
+        }
+        .view-switch button.active {
+            background: #1e40af;
+            color: white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .view-switch button:not(.active) {
+            color: #6b7280;
+        }
+
+        @media print {
+            body * { visibility: hidden; }
+            #print-container, #print-container * { 
+                visibility: visible; 
+                color: #000000 !important; 
+            }
+            #print-container {
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 100%;
+                background: white;
+            }
+            .page-break {
+                page-break-after: always;
+                border-bottom: 2px solid #000000; 
+                margin-bottom: 30px;
+                padding-bottom: 20px;
+            }
+            .no-print { display: none !important; }
+            
+            .print-section-divider {
+                background-color: #f3f4f6 !important;
+                border-top: 1px solid #000000 !important; 
+                border-bottom: 1px solid #000000 !important; 
+                text-align: center;
+                font-weight: bold;
+                text-transform: uppercase;
+                font-size: 11px; 
+                padding: 6px 0;
+                color: #000000 !important;
+            }
+
+            table td {
+                padding-top: 8px !important; 
+                padding-bottom: 8px !important; 
+                padding-left: 6px !important;
+                padding-right: 6px !important;
+                line-height: 1.3 !important;
+                font-size: 12px;
+                border-color: #000000 !important; 
+                color: #000000 !important;
+            }
+            table th {
+                padding: 6px 6px !important;
+                font-size: 11px;
+                background-color: #000000 !important; 
+                color: white !important;
+                border-color: #000000 !important;
+            }
+            .print-time { font-size: 21px !important; color: #000000 !important; font-weight: 900 !important; } 
+            .print-addr { font-size: 15px !important; color: #000000 !important; font-weight: 700 !important; } 
+            .print-name { font-size: 13px !important; color: #000000 !important; font-weight: 900 !important; } 
+            h1, h2, h3, p, span { color: #000000 !important; }
+            
+            .print-route-options {
+                width: 100%;
+                margin-bottom: 10px;
+                font-size: 10px;
+                border: 1px solid #000;
+            }
+            .print-route-options td {
+                padding: 4px !important;
+                border: 1px solid #000 !important;
+            }
+            .print-route-active {
+                background-color: #eee !important;
+                font-weight: bold !important;
+            }
+            .feat-red { color: #dc2626 !important; font-weight: bold !important; }
+        }
+
+        .memory-card { cursor: pointer; transition: transform 0.1s; }
+        .memory-card:hover { transform: scale(1.01); }
+        .memory-card.is-loaded { background-color: #f0fdf4; border-color: #86efac; }
+        .feat-red { color: #dc2626 !important; font-weight: bold !important; }
+
+        #excel-import-area:focus {
+            border-color: #3b82f6;
+            background-color: #eff6ff;
+        }
+    </style>
+</head>
+<body class="h-screen flex flex-col overflow-hidden">
+
+    <datalist id="waypoint-address-list"></datalist>
+    <datalist id="global-address-list"></datalist>
+
+    <div class="bg-white border-b border-gray-300 flex-none z-20 shadow-sm sticky top-0 no-print">
+        <div class="w-full mx-auto px-4 pt-4 pb-2"> 
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-end gap-3">
+                <div class="flex flex-col md:flex-row items-start md:items-center gap-3 w-full md:w-auto">
+                    <div class="flex items-center justify-between w-full md:w-auto gap-2">
+                        <h1 id="main-app-title" class="text-xl md:text-2xl font-extrabold text-gray-700 italic">Teufelsbad Planer</h1>
+                        <button onclick="openSettingsModal()" class="text-gray-400 hover:text-gray-800 transition text-xl outline-none" title="Einstellungen">⚙️</button>
+                    </div>
+                    <div class="flex flex-wrap gap-1">
+                        <button onclick="exportData()" class="bg-gray-200 hover:bg-gray-300 text-gray-700 text-[10px] font-bold py-1 px-2 rounded uppercase">Voll-Sichern</button>
+                        <button onclick="document.getElementById('importFile').value=''; document.getElementById('importFile').click()" class="bg-gray-200 hover:bg-gray-300 text-gray-700 text-[10px] font-bold py-1 px-2 rounded uppercase">Import</button>
+                        <button onclick="printCombinedDoc()" class="bg-gray-800 hover:bg-black text-white text-[10px] font-bold py-1 px-3 rounded uppercase">🖨 PDF Fahrpläne</button>
+                        <input type="file" id="importFile" class="hidden" accept=".json" onchange="importData(event)">
+                    </div>
+                </div>
+                <div class="flex flex-wrap gap-2 w-full md:w-auto mt-1 md:mt-0">
+                    <button onclick="showPatientMemory()" class="flex-1 md:flex-none bg-amber-500 hover:bg-amber-600 text-white font-bold py-1.5 px-3 rounded shadow text-sm transition text-center">Patienten-Speicher</button>
+                    <button onclick="addNewTab()" class="flex-1 md:flex-none bg-blue-600 hover:bg-blue-700 text-white font-bold py-1.5 px-3 rounded shadow text-sm transition text-center">Neues Auto</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Der neue Schieberegler / View-Switcher -->
+        <div class="view-switch-container">
+            <div class="view-switch">
+                <button id="view-btn-planer" onclick="switchMainView('planer')" class="active">Planer</button>
+                <button id="view-btn-karte" onclick="switchMainView('karte')">Karte</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="flex-grow flex h-full overflow-hidden w-full no-print"> 
+        <!-- Planner Section -->
+        <div id="planner-section" class="flex flex-col h-full overflow-hidden w-full md:w-1/2 border-r border-gray-300">
+            <div id="tabs-header" class="bg-gray-100 border-b border-gray-300 px-4 pt-2 flex space-x-1 overflow-x-auto flex-none w-full"></div>
+            <div id="tabs-content" class="flex-grow relative overflow-hidden"></div>
+        </div>
+        <!-- Map Section -->
+        <div id="map-container" class="hidden md:block w-full md:w-1/2 h-full relative border-l border-gray-300">
+            <div id="map-display"></div>
+        </div>
+    </div>
+
+    <div id="print-container" class="hidden print:block p-8"></div>
+
+    <div id="settingsModal" class="hidden fixed inset-0 bg-black/60 z-[130] overflow-y-auto p-4 sm:p-8 flex items-center justify-center no-print">
+        <div class="bg-white rounded-xl w-full max-w-2xl mx-auto flex flex-col shadow-2xl">
+            <div class="bg-gray-800 text-white p-4 rounded-t-xl flex justify-between items-center">
+                <h3 class="text-lg font-black uppercase italic">⚙️ Globale Einstellungen</h3>
+                <button onclick="document.getElementById('settingsModal').classList.add('hidden')" class="text-white hover:text-gray-300 font-bold text-xl leading-none">×</button>
+            </div>
+            <div class="p-6 flex flex-col gap-4 max-h-[75vh] overflow-y-auto">
+                
+                <div class="bg-gray-50 p-4 border rounded-lg">
+                    <h4 class="text-xs font-bold uppercase text-gray-500 mb-3">Allgemein</h4>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-[10px] font-bold text-gray-700 uppercase mb-1">App Überschrift</label>
+                            <input type="text" id="set-title" class="w-full p-2 border rounded text-sm outline-none focus:border-blue-500">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-gray-700 uppercase mb-1">Standard Reiter-Name</label>
+                            <input type="text" id="set-tab-name" class="w-full p-2 border rounded text-sm outline-none focus:border-blue-500">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-blue-50 p-4 border border-blue-100 rounded-lg">
+                    <h4 class="text-xs font-bold uppercase text-blue-800 mb-3">Routen-Parameter</h4>
+                    <div class="grid grid-cols-1 gap-4 mb-4">
+                        <div>
+                            <label class="block text-[10px] font-bold text-blue-700 uppercase mb-1">Standard Start/Ziel Adresse (Klinik)</label>
+                            <input type="text" id="set-start-addr" class="w-full p-2 border rounded text-sm outline-none focus:border-blue-500">
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-[10px] font-bold text-blue-700 uppercase mb-1">Pufferzeit zwischen Stopps (Minuten)</label>
+                            <input type="number" id="set-buffer" min="0" step="5" class="w-full p-2 border rounded text-sm outline-none focus:border-blue-500">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-orange-50 p-4 border border-orange-100 rounded-lg">
+                    <h4 class="text-xs font-bold uppercase text-orange-800 mb-3">Bezeichnungen (Wegpunkt-Typen)</h4>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-[10px] font-bold text-orange-700 uppercase mb-1">Label für 'Klinik'</label>
+                            <input type="text" id="set-lbl-klinik" class="w-full p-2 border rounded text-sm outline-none focus:border-orange-500">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-orange-700 uppercase mb-1">Label für 'Anreise'</label>
+                            <input type="text" id="set-lbl-anreise" class="w-full p-2 border rounded text-sm outline-none focus:border-orange-500">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-orange-700 uppercase mb-1">Label für 'Abreise'</label>
+                            <input type="text" id="set-lbl-abreise" class="w-full p-2 border rounded text-sm outline-none focus:border-orange-500">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-orange-700 uppercase mb-1">Label für 'Wegpunkt'</label>
+                            <input type="text" id="set-lbl-wegpunkt" class="w-full p-2 border rounded text-sm outline-none focus:border-orange-500">
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="flex gap-4 mt-2">
+                    <button onclick="document.getElementById('settingsModal').classList.add('hidden')" class="flex-1 bg-gray-200 py-3 rounded font-bold uppercase hover:bg-gray-300 transition text-gray-700">Abbrechen</button>
+                    <button onclick="saveSettings()" class="flex-1 bg-green-600 text-white py-3 rounded font-bold uppercase hover:bg-green-700 transition shadow-md">Speichern & Neuladen</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="memoryModal" class="hidden fixed inset-0 bg-black/50 z-[100] overflow-y-auto p-4 sm:p-8 no-print">
+        <div class="bg-white rounded-xl p-6 w-full max-w-6xl mx-auto mt-6 mb-10 flex flex-col shadow-2xl">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-bold text-gray-800">Patienten-Management</h3>
+                <div class="flex items-center gap-2">
+                    <input type="text" id="memorySearch" onkeyup="filterMemory()" placeholder="🔍 Suche..." class="p-2 border rounded-lg text-sm w-64 outline-none border-blue-300">
+                    <button onclick="document.getElementById('backupSearchFile').click()" class="bg-indigo-100 hover:bg-indigo-200 text-indigo-800 font-bold py-2 px-3 rounded-lg text-sm transition border border-indigo-300 flex items-center gap-1" title="In Backups suchen">
+                        📂 Archiv-Suche
+                    </button>
+                    <input type="file" id="backupSearchFile" class="hidden" accept=".json" multiple onchange="handleBackupSearch(event)">
+                </div>
+            </div>
+
+            <div class="flex gap-4 mb-6">
+                <button onclick="toggleImport('excel')" class="flex-1 bg-orange-500 hover:bg-orange-600 text-white font-bold py-3 rounded-lg shadow-md uppercase transition flex items-center justify-center gap-2">
+                    <span class="text-xl">🚚</span> Anreisen einfügen (Excel)
+                </button>
+                <button onclick="toggleImport('word')" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg shadow-md uppercase transition flex items-center justify-center gap-2">
+                    <span class="text-xl">🏠</span> Abreisen einfügen (Dokumente)
+                </button>
+            </div>
+            
+            <div id="word-import-container" class="hidden bg-emerald-50 p-5 rounded-xl mb-6 border border-emerald-200 shrink-0 transition-all">
+                <h4 class="text-emerald-800 text-sm font-black uppercase mb-3 italic">Abreise Wochen-Liste Importieren (Word / OpenOffice)</h4>
+                
+                <div class="mb-4">
+                    <button onclick="document.getElementById('word-file-input').click()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold py-3 px-4 rounded-lg shadow-md uppercase transition flex items-center justify-center gap-2">
+                        <span class="text-xl">📄</span> Ganze Datei laden (.docx, .doc, .odt)
+                    </button>
+                    <input type="file" id="word-file-input" class="hidden" accept=".docx, .doc, .odt, .rtf" onchange="handleWordFileUpload(event)">
+                </div>
+                
+                <div class="w-full relative mb-4">
+                    <div class="absolute inset-0 flex items-center" aria-hidden="true">
+                        <div class="w-full border-t border-emerald-300"></div>
+                    </div>
+                    <div class="relative flex justify-center">
+                        <span class="px-2 bg-emerald-50 text-[10px] font-bold text-emerald-600 uppercase">Oder manuell einfügen</span>
+                    </div>
+                </div>
+
+                <div class="w-full">
+                    <label class="block text-[10px] font-bold text-emerald-600 uppercase mb-1">Word/OpenOffice Tabelle einfügen:</label>
+                    <input type="text" id="word-import-abreise-mass" onpaste="handleAbreiseMassPaste(event)" placeholder="Zellen markieren und hier Strg+V drücken..." class="w-full p-3 border border-emerald-300 rounded-lg text-sm outline-none bg-white shadow-sm">
+                </div>
+                
+                <div id="massen-import-preview-container" class="hidden mt-4 bg-white border border-emerald-200 rounded p-2 shadow-inner">
+                    <div class="flex justify-between items-center mb-2">
+                        <span class="text-[10px] font-black text-emerald-800 uppercase">Vorschau: Erkannte Abreisen (Werden erst nach Bestätigung gespeichert)</span>
+                        <button onclick="confirmMassImport()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded text-[10px] font-bold uppercase shadow transition">Alle in Planer speichern</button>
+                    </div>
+                    <div class="max-h-32 overflow-y-auto border rounded text-[10px]">
+                        <table class="w-full text-left border-collapse">
+                            <thead class="bg-emerald-100 sticky top-0">
+                                <tr><th class="p-1 border-r border-emerald-200">Datum</th><th class="p-1 border-r border-emerald-200">Name</th><th class="p-1 border-r border-emerald-200">Adresse (Gereinigt)</th><th class="p-1 text-center">TS</th></tr>
+                            </thead>
+                            <tbody id="massen-import-preview-body"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-blue-50 p-5 rounded-xl mb-6 border border-blue-100 shrink-0">
+                <h4 class="text-blue-800 text-sm font-black uppercase mb-3 italic">Einzelner Patienten Import / Manuelle Eingabe</h4>
+                
+                <div id="excel-import-container" class="hidden mb-4 p-4 bg-white border-2 border-blue-200 rounded-lg shadow-sm transition-all">
+                    
+                    <div class="mb-4">
+                        <button onclick="document.getElementById('excel-file-input').click()" class="w-full bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold py-3 px-4 rounded-lg shadow-md uppercase transition flex items-center justify-center gap-2">
+                            <span class="text-xl">📊</span> Ganze Excel-Datei laden & filtern (.xlsx)
+                        </button>
+                        <input type="file" id="excel-file-input" class="hidden" accept=".xlsx, .xls" onchange="handleExcelFileUpload(event)">
+                    </div>
+
+                    <div class="w-full relative mb-4">
+                        <div class="absolute inset-0 flex items-center" aria-hidden="true">
+                            <div class="w-full border-t border-blue-200"></div>
+                        </div>
+                        <div class="relative flex justify-center">
+                            <span class="px-2 bg-white text-[10px] font-bold text-blue-500 uppercase">Oder manuell einfügen</span>
+                        </div>
+                    </div>
+
+                    <label class="block text-[10px] font-bold text-blue-600 uppercase mb-2 italic">Excel-Zeile hier einfügen (Spalten A bis H):</label>
+                    <input type="text" id="excel-import-area" onpaste="handleExcelPaste(event)" placeholder="Zellen in Excel kopieren und hier mit Strg+V einfügen..." class="w-full p-3 border-2 border-dashed border-blue-300 rounded-lg text-sm bg-blue-50 outline-none transition-all">
+                </div>
+
+                <input type="hidden" id="mem-id-edit">
+                
+                <div class="grid grid-cols-1 gap-2 mb-2">
+                    <input id="mem-name" class="p-2 text-sm border rounded font-bold" placeholder="Name">
+                </div>
+
+                <div class="grid grid-cols-3 gap-2 mb-2">
+                    <input id="mem-addr" list="global-address-list" class="p-2 text-xs border rounded" placeholder="Heimatadresse" onchange="checkManualOrtsteil(this)">
+                    <input id="mem-phone" class="p-2 text-sm border rounded" placeholder="Telefon">
+                    <div class="relative flex gap-1">
+                        <input id="mem-addr-alt" list="saved-abholadressen" class="p-2 text-xs border rounded bg-white flex-grow" placeholder="Abholadresse (Klinikname + Adresse)">
+                        <button onclick="quickSaveKlinik()" title="Klinik in Liste speichern" class="bg-white border rounded px-2 hover:bg-gray-100 text-sm">💾</button>
+                        <datalist id="saved-abholadressen"></datalist>
+                    </div>
+                </div>
+                
+                <div class="mb-2 p-2 bg-white/50 rounded-lg border border-blue-100">
+                    <div class="flex flex-wrap gap-3 items-center" id="feat-container">
+                        <span class="text-[10px] font-bold uppercase text-gray-500 italic">Merkmale:</span>
+                        <label class="text-[10px] flex items-center gap-1 font-bold text-red-600"><input type="checkbox" value="R"> R</label>
+                        <label class="text-[10px] flex items-center gap-1 font-bold text-red-600"><input type="checkbox" value="BR"> BR</label>
+                        <label class="text-[10px] flex items-center gap-1 font-bold text-red-600"><input type="checkbox" value="TS"> TS</label>
+                        <label class="text-[10px] flex items-center gap-1 font-bold text-red-600"><input type="checkbox" value="L"> L</label>
+                        <label class="text-[10px] flex items-center gap-1 font-bold text-red-600"><input type="checkbox" value="RO"> RO</label>
+                        <label class="text-[10px] flex items-center gap-1 font-bold text-red-600"><input type="checkbox" id="mem-transportschein" value="TRANSPORTSCHEIN"> TRANSPORTSCHEIN</label>
+                    </div>
+                </div>
+                
+                <div class="flex items-center gap-6 mb-3 p-2 bg-white/50 rounded-lg border border-blue-100">
+                    <span class="text-[10px] font-bold uppercase text-gray-500 italic">Status:</span>
+                    <label class="flex items-center gap-2 cursor-pointer"><input type="radio" name="mem-status-choice" value="anreise" id="status-anreise" checked><span class="text-sm font-bold text-orange-600 uppercase">Anreise</span></label>
+                    <label class="flex items-center gap-2 cursor-pointer"><input type="radio" name="mem-status-choice" value="abreise" id="status-abreise"><span class="text-sm font-bold text-blue-800 uppercase">Abreise</span></label>
+                </div>
+
+                <div class="grid grid-cols-3 gap-4 items-end">
+                    <div>
+                        <label class="text-[9px] font-bold text-blue-800 uppercase ml-1 italic">Anreisedatum</label>
+                        <input id="mem-date" type="date" class="p-2 text-sm border rounded w-full font-bold">
+                    </div>
+                    <div>
+                        <label class="text-[9px] font-bold text-orange-700 uppercase ml-1 italic">Abreise</label>
+                        <input id="mem-date-out" type="date" class="p-2 text-sm border border-orange-200 rounded w-full font-bold text-orange-700">
+                    </div>
+                    <button onclick="addManualToMemory()" class="bg-blue-600 text-white py-2 rounded-lg text-sm font-bold uppercase shadow-md hover:bg-blue-700 transition">Speichern</button>
+                </div>
+            </div>
+
+            <button onclick="document.getElementById('memoryModal').classList.add('hidden')" class="w-full bg-gray-200 py-2 mb-2 rounded font-bold uppercase hover:bg-gray-300 transition text-sm border border-gray-300">Schließen</button>
+
+            <div class="grid grid-cols-2 gap-4 mt-2">
+                <div class="flex flex-col border rounded-lg bg-gray-50">
+                    <div class="bg-blue-800 text-white p-2 flex justify-between items-center rounded-t-lg">
+                        <span class="text-xs font-bold uppercase italic flex-grow text-center pl-6">Abreiseliste</span>
+                        <button onclick="window.clearAbreiseList()" class="text-white hover:text-red-300 transition outline-none" title="Komplette Abreiseliste löschen">🗑</button>
+                    </div>
+                    <div id="memoryListAbreise" class="overflow-y-auto p-3 space-y-2 h-[450px]"></div>
+                </div>
+                <div class="flex flex-col border rounded-lg bg-gray-50">
+                    <div class="bg-orange-500 text-white p-2 flex justify-between items-center rounded-t-lg">
+                        <span class="text-xs font-bold uppercase italic flex-grow text-center pl-6">Anreiseliste</span>
+                        <button onclick="window.clearAnreiseList()" class="text-white hover:text-red-900 transition outline-none" title="Komplette Anreiseliste löschen">🗑</button>
+                    </div>
+                    <div id="memoryListAnreise" class="overflow-y-auto p-3 space-y-2 h-[450px]"></div>
+                </div>
+            </div>
+            
+            <button onclick="document.getElementById('memoryModal').classList.add('hidden')" class="mt-6 w-full bg-gray-200 py-3 rounded font-bold uppercase hover:bg-gray-300 transition">Schließen</button>
+        </div>
+    </div>
+
+    <div id="scannerModal" class="hidden fixed inset-0 bg-black/60 z-[110] overflow-y-auto p-4 sm:p-8 flex items-center justify-center no-print">
+        <div class="bg-white rounded-xl w-full max-w-2xl mx-auto flex flex-col shadow-2xl">
+            <div class="bg-purple-700 text-white p-4 rounded-t-xl flex justify-between items-center">
+                <h3 class="text-lg font-black uppercase italic">🔍 Umkreis-Scanner (Wende-Punkt)</h3>
+                <button onclick="document.getElementById('scannerModal').classList.add('hidden')" class="text-white hover:text-purple-200 font-bold text-xl leading-none">×</button>
+            </div>
+            <div class="p-6 flex flex-col max-h-[70vh]">
+                <p class="text-xs text-gray-600 mb-4 border-b pb-4">
+                    Der Scanner berechnet die Luftlinie zwischen dem letzten Abreise-Punkt in der aktuellen Tour und allen offenen Anreisen im Speicher. 
+                    So findest du sofort den idealen Anschluss-Patienten zur Vermeidung von Leerfahrten.
+                </p>
+                <div id="scanner-loading" class="text-center py-8 hidden">
+                    <div class="inline-block animate-spin w-8 h-8 border-4 border-purple-500 border-t-transparent rounded-full mb-2"></div>
+                    <div class="text-sm font-bold text-purple-700 uppercase">Geokodierung & Berechnung läuft...</div>
+                    <div class="text-[10px] text-gray-500">Dies kann bei neuen Adressen einen Moment dauern.</div>
+                </div>
+                <div id="scanner-results" class="overflow-y-auto flex-grow flex flex-col gap-2"></div>
+                <button onclick="document.getElementById('scannerModal').classList.add('hidden')" class="mt-6 w-full bg-gray-200 py-3 rounded font-bold uppercase hover:bg-gray-300 transition">Schließen</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="korridorModal" class="hidden fixed inset-0 bg-black/60 z-[110] overflow-y-auto p-4 sm:p-8 flex items-center justify-center no-print">
+        <div class="bg-white rounded-xl w-full max-w-2xl mx-auto flex flex-col shadow-2xl">
+            <div class="bg-indigo-700 text-white p-4 rounded-t-xl flex justify-between items-center">
+                <h3 class="text-lg font-black uppercase italic">🛣 Korridor-Scanner (Rückweg)</h3>
+                <button onclick="document.getElementById('korridorModal').classList.add('hidden')" class="text-white hover:text-indigo-200 font-bold text-xl leading-none">×</button>
+            </div>
+            <div class="p-6 flex flex-col max-h-[70vh]">
+                <p class="text-xs text-gray-600 mb-4 border-b pb-4">
+                    Der Scanner berechnet, wie viel <b>zusätzlichen Umweg (in km)</b> ein Patient im Vergleich zur direkten Rückfahrt (vom letzten Abreise-Punkt zur Klinik) verursacht. So identifizieren Sie lukrative "Mitnahme-Gewinne" entlang der Route.
+                </p>
+                <div id="korridor-loading" class="text-center py-8 hidden">
+                    <div class="inline-block animate-spin w-8 h-8 border-4 border-indigo-500 border-t-transparent rounded-full mb-2"></div>
+                    <div class="text-sm font-bold text-indigo-700 uppercase">Geokodierung & Berechnung läuft...</div>
+                    <div class="text-[10px] text-gray-500">Dies kann bei neuen Adressen einen Moment dauern.</div>
+                </div>
+                <div id="korridor-results" class="overflow-y-auto flex-grow flex flex-col gap-2"></div>
+                <button onclick="document.getElementById('korridorModal').classList.add('hidden')" class="mt-6 w-full bg-gray-200 py-3 rounded font-bold uppercase hover:bg-gray-300 transition">Schließen</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="backupSearchModal" class="hidden fixed inset-0 bg-black/60 z-[120] overflow-y-auto p-4 sm:p-8 flex items-center justify-center no-print">
+        <div class="bg-white rounded-xl w-full max-w-3xl mx-auto flex flex-col shadow-2xl">
+            <div class="bg-indigo-800 text-white p-4 rounded-t-xl flex justify-between items-center">
+                <h3 class="text-lg font-black uppercase italic">📂 Archiv-Suchergebnisse</h3>
+                <button onclick="document.getElementById('backupSearchModal').classList.add('hidden')" class="text-white hover:text-indigo-200 font-bold text-xl leading-none">×</button>
+            </div>
+            <div class="p-6 flex flex-col max-h-[70vh]">
+                <div class="flex justify-between items-center mb-4 border-b pb-4">
+                    <p class="text-xs text-gray-600">
+                        Gesucht nach: <strong id="backupSearchTermDisplay" class="text-indigo-700"></strong><br>
+                        Durchsuchte Dateien: <span id="backupSearchFilesCount"></span>
+                    </p>
+                </div>
+                <div id="backup-search-loading" class="text-center py-8 hidden">
+                    <div class="inline-block animate-spin w-8 h-8 border-4 border-indigo-500 border-t-transparent rounded-full mb-2"></div>
+                    <div class="text-sm font-bold text-indigo-700 uppercase">Durchsuche Backups...</div>
+                </div>
+                <div id="backup-search-results" class="overflow-y-auto flex-grow flex flex-col gap-2"></div>
+                <button onclick="document.getElementById('backupSearchModal').classList.add('hidden')" class="mt-6 w-full bg-gray-200 py-3 rounded font-bold uppercase hover:bg-gray-300 transition">Schließen</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- VIEW SWITCHER LOGIK ---
+        function switchMainView(view) {
+            const planner = document.getElementById('planner-section');
+            const mapCont = document.getElementById('map-container');
+            const btnPlaner = document.getElementById('view-btn-planer');
+            const btnKarte = document.getElementById('view-btn-karte');
+
+            if (view === 'karte') {
+                planner.classList.add('hidden');
+                planner.classList.remove('md:block'); // Falls md:block gesetzt wäre
+                
+                mapCont.classList.remove('hidden');
+                mapCont.classList.remove('md:w-1/2');
+                mapCont.classList.add('w-full');
+                
+                btnKarte.classList.add('active');
+                btnPlaner.classList.remove('active');
+                
+                // Leaflet Map Refresh
+                if (currentMap) {
+                    setTimeout(() => {
+                        currentMap.invalidateSize();
+                        // Zoom anpassen falls Marker da sind
+                        if (markerLayers.length > 0) {
+                            currentMap.fitBounds(new L.FeatureGroup(markerLayers).getBounds(), { padding: [50, 50] });
+                        }
+                    }, 100);
+                }
+            } else {
+                planner.classList.remove('hidden');
+                planner.classList.remove('md:w-1/2');
+                planner.classList.add('w-full');
+                
+                mapCont.classList.add('hidden');
+                mapCont.classList.add('md:block'); // Damit es auf Desktop wieder erscheint wenn gewollt
+                
+                btnPlaner.classList.add('active');
+                btnKarte.classList.remove('active');
+            }
+        }
+
+        // --- PWA SERVICE WORKER REGISTRATION ---
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('service-worker.js')
+                    .then(reg => console.log('ServiceWorker registriert!', reg.scope))
+                    .catch(err => console.error('ServiceWorker Fehler:', err));
+            });
+        }
+
+        const TOMTOM_API_KEY = "SiBGVPRYbkR0dbKAMIrdoZYd4BDGkP9c"; 
+
+        // --- GLOBALE EINSTELLUNGEN ---
+        let appSettings = JSON.parse(localStorage.getItem('appSettings')) || {
+            title: "Teufelsbad Planer",
+            defaultStartAddr: "Michaelstein 18, 38889 Blankenburg",
+            bufferMinutes: 10,
+            defaultTabName: "TP ..........",
+            typeLabels: {
+                klinik: "Klinik",
+                anreise: "Anreise",
+                abreise: "Abreise",
+                wegpunkt: "Wegpunkt"
+            }
+        };
+
+        const FIXED_KLINIKEN = [];
+
+        let currentMap = null;
+        let routeLayers = [];
+        let markerLayers = [];
+        let instanceData = [];
+        let tabCounter = 0;
+        let activeTabId = null;
+        let targetStopIndex = null;
+
+        // --- EINSTELLUNGEN LOGIK ---
+        function openSettingsModal() {
+            document.getElementById('set-title').value = appSettings.title;
+            document.getElementById('set-start-addr').value = appSettings.defaultStartAddr;
+            document.getElementById('set-buffer').value = appSettings.bufferMinutes;
+            document.getElementById('set-tab-name').value = appSettings.defaultTabName;
+            
+            document.getElementById('set-lbl-klinik').value = appSettings.typeLabels.klinik;
+            document.getElementById('set-lbl-anreise').value = appSettings.typeLabels.anreise;
+            document.getElementById('set-lbl-abreise').value = appSettings.typeLabels.abreise;
+            document.getElementById('set-lbl-wegpunkt').value = appSettings.typeLabels.wegpunkt;
+
+            document.getElementById('settingsModal').classList.remove('hidden');
+        }
+
+        function saveSettings() {
+            appSettings.title = document.getElementById('set-title').value;
+            appSettings.defaultStartAddr = document.getElementById('set-start-addr').value;
+            appSettings.bufferMinutes = parseInt(document.getElementById('set-buffer').value) || 0;
+            appSettings.defaultTabName = document.getElementById('set-tab-name').value;
+            
+            appSettings.typeLabels.klinik = document.getElementById('set-lbl-klinik').value;
+            appSettings.typeLabels.anreise = document.getElementById('set-lbl-anreise').value;
+            appSettings.typeLabels.abreise = document.getElementById('set-lbl-abreise').value;
+            appSettings.typeLabels.wegpunkt = document.getElementById('set-lbl-wegpunkt').value;
+
+            localStorage.setItem('appSettings', JSON.stringify(appSettings));
+            location.reload(); 
+        }
+
+        // Toggle Funktion für die Import-Bereiche
+        window.toggleImport = function(type) {
+            const excelCont = document.getElementById('excel-import-container');
+            const wordCont = document.getElementById('word-import-container');
+            if (type === 'excel') {
+                excelCont.classList.toggle('hidden');
+                wordCont.classList.add('hidden');
+            } else if (type === 'word') {
+                wordCont.classList.toggle('hidden');
+                excelCont.classList.add('hidden');
+            }
+        };
+
+        function fmtDt(isoStr) { if (!isoStr) return "--.--.----"; const [y, m, d] = isoStr.split('-'); return `${d}.${m}.${y}`; }
+        function getTodayISO() { return new Date().toISOString().split('T')[0]; }
+        function getTomorrowISO() { const d = new Date(); d.setDate(d.getDate() + 1); return d.toISOString().split('T')[0]; }
+        function roundTo5(minutes) { return Math.ceil(minutes / 5) * 5; }
+        function minToTime(totalMinutes) { const h = Math.floor(totalMinutes / 60) % 24; const m = totalMinutes % 60; return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`; }
+        function timeToMin(timeStr) { if (!timeStr || !timeStr.includes(':')) return 0; const [h, m] = timeStr.split(':').map(Number); return h * 60 + m; }
+
+        function extractCity(address) {
+            if (!address) return "";
+            const match = address.match(/\d{5}\s+([A-Za-zÄÖÜäöüß\s\-]+)/);
+            if (match && match[1]) return match[1].trim();
+            const parts = address.split(',');
+            return parts.length > 1 ? parts[parts.length - 1].trim() : address;
+        }
+
+        // --- Ortsteil (Municipality Subdivision) Helper ---
+        async function enhanceAddressWithOrtsteil(address) {
+            if (!address || address.trim().length < 5) return address;
+            try {
+                const res = await fetch(`https://api.tomtom.com/search/2/geocode/${encodeURIComponent(address)}.json?key=${TOMTOM_API_KEY}&limit=1&countrySet=DE`);
+                const data = await res.json();
+                if (data.results && data.results[0] && data.results[0].address) {
+                    const addrObj = data.results[0].address;
+                    if (addrObj.municipalitySubdivision && addrObj.municipality && addrObj.municipalitySubdivision !== addrObj.municipality) {
+                        let newAddr = "";
+                        if (addrObj.postalCode) newAddr += addrObj.postalCode + " ";
+                        newAddr += addrObj.municipality;
+                        newAddr += ", OT " + addrObj.municipalitySubdivision;
+                        if (addrObj.streetName) {
+                            newAddr += ", " + addrObj.streetName;
+                            if (addrObj.streetNumber) newAddr += " " + addrObj.streetNumber;
+                        }
+                        return newAddr.trim();
+                    }
+                }
+            } catch (e) {
+                console.error("Geocoding error for Ortsteil check:", e);
+            }
+            return address;
+        }
+
+        async function checkManualOrtsteil(inputElem) {
+            const val = inputElem.value;
+            if (val && val.length > 5) {
+                const enhanced = await enhanceAddressWithOrtsteil(val);
+                if (enhanced !== val) {
+                    inputElem.value = enhanced;
+                }
+            }
+        }
+
+        // --- Adress-Vorschlags-System ---
+
+        function updateAllAddressDatalists() {
+            const globalDatalist = document.getElementById('global-address-list');
+            let globalHistory = JSON.parse(localStorage.getItem('globalAddressHistory') || '[]');
+            globalDatalist.innerHTML = '';
+            globalHistory.forEach(addr => {
+                const opt = document.createElement('option');
+                opt.value = addr;
+                globalDatalist.appendChild(opt);
+            });
+
+            const waypointDatalist = document.getElementById('waypoint-address-list');
+            let waypointHistory = JSON.parse(localStorage.getItem('waypointAddressHistory') || '[]');
+            waypointDatalist.innerHTML = '';
+            waypointHistory.forEach(addr => {
+                const opt = document.createElement('option');
+                opt.value = addr;
+                waypointDatalist.appendChild(opt);
+            });
+        }
+
+        function saveToHistory(addr, isWaypoint = false) {
+            if (!addr || addr.trim().length < 5) return;
+            const cleaned = addr.trim();
+
+            if (isWaypoint) {
+                let saved = JSON.parse(localStorage.getItem('waypointAddressHistory') || '[]');
+                if (!saved.includes(cleaned)) {
+                    saved.push(cleaned);
+                    if (saved.length > 50) saved.shift();
+                    localStorage.setItem('waypointAddressHistory', JSON.stringify(saved));
+                }
+            } else {
+                let saved = JSON.parse(localStorage.getItem('globalAddressHistory') || '[]');
+                if (!saved.includes(cleaned)) {
+                    saved.push(cleaned);
+                    if (saved.length > 100) saved.shift();
+                    localStorage.setItem('globalAddressHistory', JSON.stringify(saved));
+                }
+            }
+            updateAllAddressDatalists();
+        }
+
+        function updateAbholadressenDatalist() {
+            const datalist = document.getElementById('saved-abholadressen');
+            let saved = JSON.parse(localStorage.getItem('savedAbholadressen') || '[]');
+            datalist.innerHTML = '';
+            FIXED_KLINIKEN.forEach(addr => {
+                const opt = document.createElement('option');
+                opt.value = addr;
+                datalist.appendChild(opt);
+            });
+            saved.forEach(addr => {
+                if (!FIXED_KLINIKEN.includes(addr)) {
+                    const opt = document.createElement('option');
+                    opt.value = addr;
+                    datalist.appendChild(opt);
+                }
+            });
+        }
+
+        function saveAbholadresseToList(addr) {
+            if (!addr || addr.trim().length < 5) return;
+            let saved = JSON.parse(localStorage.getItem('savedAbholadressen') || '[]');
+            if (!saved.includes(addr.trim()) && !FIXED_KLINIKEN.includes(addr.trim())) {
+                saved.push(addr.trim());
+                localStorage.setItem('savedAbholadressen', JSON.stringify(saved));
+                updateAbholadressenDatalist();
+            }
+        }
+        
+        function quickSaveKlinik() {
+            const addr = document.getElementById('mem-addr-alt').value;
+            if (addr) {
+                saveAbholadresseToList(addr);
+                alert("Klinik wurde in die Liste aufgenommen.");
+            }
+        }
+
+        async function handleExcelPaste(e) {
+            e.preventDefault();
+            const text = (e.clipboardData || window.clipboardData).getData('text');
+            if (!text) return;
+            
+            const parts = text.split('\t').map(p => p.trim());
+            
+            if (parts.length < 5) {
+                document.getElementById('excel-import-area').value = text;
+                return;
+            }
+
+            document.getElementById('excel-import-area').value = "⏳ Prüfe Ortsteile...";
+
+            const rawDate = parts[0] || ""; 
+            let formattedDate = "";
+            if (rawDate.includes('.')) {
+                const dateParts = rawDate.split('.');
+                if (dateParts.length === 3) {
+                    formattedDate = `${dateParts[2]}-${dateParts[1].padStart(2, '0')}-${dateParts[0].padStart(2, '0')}`;
+                }
+            }
+
+            const nachname = parts[1] || ""; 
+            const vorname = parts[2] || "";  
+            const plz = parts[4] || "";      
+            const ort = parts[5] || "";      
+            const strasse = parts[6] || "";  
+            let telefon = parts[7] || "";    
+            let abhol = parts[8] || "";      
+
+            const lowerAbhol = abhol.toLowerCase();
+            if (lowerAbhol.includes("diakonie") || lowerAbhol.includes("halle")) {
+                abhol = "Diakoniekrankenhaus Halle, Mühlweg 7, 06114 Halle (Saale)";
+            } else if (lowerAbhol.includes("helios") || lowerAbhol.includes("neindorf") || lowerAbhol.includes("bördeklinik")) {
+                abhol = "Helios Bördeklinik, Kreiskrankenhaus 4, 39387 Oschersleben OT Neindorf";
+            } else if (lowerAbhol.includes("klinikum magdeburg")) {
+                abhol = "Klinikum Magdeburg gGmbH, Birkenallee 34, 39130 Magdeburg";
+            } else if (abhol.length > 3) {
+                abhol = await autoSearchClinic(abhol);
+            }
+
+            if (nachname && vorname) {
+                document.getElementById('mem-name').value = `${nachname}, ${vorname}`;
+            } else {
+                document.getElementById('mem-name').value = nachname || vorname;
+            }
+
+            let fullAddr = "";
+            if (plz || ort) fullAddr = `${plz} ${ort}`;
+            if (strasse) fullAddr += (fullAddr ? `, ${strasse}` : strasse);
+            
+            fullAddr = await enhanceAddressWithOrtsteil(fullAddr);
+
+            document.getElementById('mem-addr').value = fullAddr;
+
+            if (telefon) {
+                if (telefon.startsWith('49')) {
+                    telefon = '0' + telefon.substring(2);
+                }
+                if (!telefon.includes(' ') && telefon.length > 5) {
+                    const splitPos = telefon.startsWith('01') ? 4 : 5;
+                    telefon = telefon.substring(0, splitPos) + ' ' + telefon.substring(splitPos);
+                }
+                document.getElementById('mem-phone').value = telefon;
+            }
+            if (abhol) {
+                document.getElementById('mem-addr-alt').value = abhol;
+            }
+
+            if (formattedDate) {
+                document.getElementById('mem-date').value = formattedDate;
+            }
+
+            document.getElementById('excel-import-area').value = "✅ Alles inkl. Datum eingefügt!";
+            setTimeout(() => {
+                document.getElementById('excel-import-area').value = "";
+            }, 1000);
+        }
+
+        function saveAll() {
+            const tours = instanceData.map(inst => {
+                const titleElem = document.querySelector(`#tab-content-${inst.id} .tour-title`);
+                const activeRouteOpt = document.querySelector(`#tab-content-${inst.id} .route-opt.active`);
+                return { 
+                    id: inst.id, 
+                    title: titleElem ? titleElem.innerText : appSettings.defaultTabName, 
+                    tourStops: inst.tourStops, 
+                    legsData: inst.legsData, 
+                    tourDate: inst.tourDate, 
+                    startT: inst.startT, 
+                    totalDist: inst.totalDistanceKm, 
+                    totalPureMin: inst.pureT, 
+                    totalWithBufferMin: inst.totalT,
+                    routeMode: activeRouteOpt ? activeRouteOpt.dataset.mode : 'fastest',
+                    comparisonData: inst.comparisonData || null
+                };
+            });
+            localStorage.setItem('activeToursData', JSON.stringify({ 
+                tabCounter, 
+                tours, 
+                lastSavedDate: getTodayISO() 
+            }));
+        }
+
+        function cleanupMemory() {
+            const todayISO = getTodayISO();
+            let memory = JSON.parse(localStorage.getItem('patientMemory') || '[]');
+            const toursData = JSON.parse(localStorage.getItem('activeToursData') || '{"tours":[]}');
+            
+            let idsInCurrentTours = new Set();
+            if (toursData && toursData.tours) {
+                toursData.tours.forEach(tour => {
+                    if (tour.tourDate <= todayISO) { 
+                        tour.tourStops.forEach(stop => {
+                            if (stop.patientId) idsInCurrentTours.add(stop.patientId);
+                        });
+                    }
+                });
+            }
+
+            const filtered = memory.filter(p => {
+                if (idsInCurrentTours.has(p.id) && p.status === 'abreise') {
+                    return false;
+                }
+                if (p.status === 'abreise' && p.departureDate && p.departureDate < todayISO) {
+                    return false;
+                }
+                return true; 
+            });
+
+            localStorage.setItem('patientMemory', JSON.stringify(filtered));
+        }
+
+        function clearFullPlaner() {
+            if (!confirm("Gesamten Planer löschen und auf Werkseinstellung zurücksetzen?")) return;
+            let memory = JSON.parse(localStorage.getItem('patientMemory') || '[]');
+            memory = memory.filter(p => !(p.status === 'anreise' && p.isLoaded === true));
+            memory.forEach(p => { p.isLoaded = false; });
+            localStorage.setItem('patientMemory', JSON.stringify(memory));
+            instanceData = [];
+            tabCounter = 0;
+            document.getElementById('tabs-header').innerHTML = '';
+            document.getElementById('tabs-content').innerHTML = '';
+            localStorage.removeItem('activeToursData');
+            addNewTab();
+            saveAll();
+        }
+
+        function initMap() {
+            if (!document.getElementById('map-display')) return;
+            
+            const standardLayer = L.tileLayer(`https://api.tomtom.com/map/1/tile/basic/main/{z}/{x}/{y}.png?key=${TOMTOM_API_KEY}`, { attribution: '© TomTom', maxZoom: 22 });
+            
+            // Satelliten-Hybrid Ansicht (Bild + Straßen/Hausnummern Overlay)
+            const satBase = L.tileLayer(`https://api.tomtom.com/map/1/tile/sat/main/{z}/{x}/{y}.jpg?key=${TOMTOM_API_KEY}`, { attribution: '© TomTom', maxZoom: 22 });
+            const satOverlay = L.tileLayer(`https://api.tomtom.com/map/1/tile/hybrid/main/{z}/{x}/{y}.png?key=${TOMTOM_API_KEY}`, { attribution: '© TomTom', maxZoom: 22 });
+            const satHybrid = L.layerGroup([satBase, satOverlay]);
+
+            // Gelände-Ansicht (Topographie über OpenTopoMap, maxZoom typischerweise 17)
+            const terrainLayer = L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
+                maxZoom: 17,
+                attribution: 'Map data: © OpenStreetMap contributors, SRTM | Map style: © OpenTopoMap'
+            });
+
+            currentMap = L.map('map-display', {
+                center: [51.833, 10.790],
+                zoom: 12,
+                maxZoom: 22,
+                layers: [standardLayer] 
+            });
+
+            const baseMaps = {
+                "Standard (Karte)": standardLayer,
+                "Satellit (Hausnummern)": satHybrid,
+                "Gelände": terrainLayer
+            };
+
+            L.control.layers(baseMaps, null, {position: 'topleft'}).addTo(currentMap);
+            
+            const legend = L.control({position: 'topright'});
+            legend.onAdd = function () {
+                const div = L.DomUtil.create('div', 'bg-white p-2 rounded-lg shadow-md border border-gray-200 text-[10px] font-bold text-gray-700 pointer-events-auto');
+                div.innerHTML = `
+                    <div class="text-[9px] uppercase text-gray-500 mb-1.5 border-b pb-0.5 italic">Karten-Legende</div>
+                    <div class="flex gap-4">
+                        <div class="flex flex-col gap-1">
+                            <div><span class="inline-block w-3 h-3 bg-[#dc2626] rounded-full border border-white align-middle shadow-sm mr-0.5"></span> Klinik</div>
+                            <div><span class="inline-block w-3 h-3 bg-[#1d4ed8] rounded-full border border-white align-middle shadow-sm mr-0.5"></span> Abreise</div>
+                            <div><span class="inline-block w-3 h-3 bg-[#ea580c] rounded-full border border-white align-middle shadow-sm mr-0.5"></span> Anreise</div>
+                            <div><span class="inline-block w-3 h-3 bg-[#059669] rounded-full border border-white align-middle shadow-sm mr-0.5"></span> Wegpunkt</div>
+                        </div>
+                        <div class="flex flex-col gap-1.5 mt-0.5">
+                            <div class="flex items-center gap-1"><div class="w-5 h-1 bg-[#3b82f6]"></div> Abreise-Route</div>
+                            <div class="flex items-center gap-1"><div class="w-5 h-1 bg-[#f97316]"></div> Anreise-Route</div>
+                            <div class="flex items-center gap-1"><div class="w-5 h-1 bg-[#059669]"></div> Wegpunkt-Route</div>
+                            <div class="flex items-center gap-1"><div class="w-5 h-1" style="background: repeating-linear-gradient(90deg, #ff0000, #ff0000 4px, #ffff00 4px, #ffff00 8px);"></div> Leerkilometer</div>
+                        </div>
+                    </div>
+                `;
+                return div;
+            };
+            legend.addTo(currentMap);
+
+            currentMap.on('click', async function(e) {
+                const { lat, lng } = e.latlng; const inst = instanceData.find(i => i.id === activeTabId); if (!inst) return;
+                try {
+                    const res = await fetch(`https://api.tomtom.com/search/2/reverseGeocode/${lat},${lng}.json?key=${TOMTOM_API_KEY}`);
+                    const data = await res.json();
+                    const addr = data.addresses && data.addresses[0] ? data.addresses[0].address.freeformAddress : `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+                    inst.addManualStop(addr, "Manueller Wegpunkt", "wegpunkt", lat, lng);
+                    saveToHistory(addr, true);
+                } catch (err) { console.error(err); }
+            });
+        }
+
+        // --- TEILEN-FUNKTION (Share API via Google Maps URL) ---
+        window.shareCurrentRoute = function() {
+            if (!activeTabId) return;
+            const inst = instanceData.find(i => i.id === activeTabId);
+            if (!inst) return;
+            
+            const validStops = inst.tourStops.filter(s => s.lat && s.lon);
+            if (validStops.length < 2) {
+                alert("Bitte zuerst die Route berechnen. (Es werden mindestens Start und Ziel mit Koordinaten benötigt).");
+                return;
+            }
+
+            const origin = `${validStops[0].lat},${validStops[0].lon}`;
+            const destination = `${validStops[validStops.length-1].lat},${validStops[validStops.length-1].lon}`;
+            
+            let url = `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(destination)}`;
+            
+            if (validStops.length > 2) {
+                const waypoints = validStops.slice(1, -1).map(s => `${s.lat},${s.lon}`).join('|');
+                url += `&waypoints=${encodeURIComponent(waypoints)}`;
+            }
+
+            if (navigator.share) {
+                navigator.share({
+                    title: 'Tour Route - ' + (document.querySelector(`#tab-btn-${activeTabId} span`)?.innerText || 'Klinik Planer'),
+                    text: 'Hier ist die berechnete Route:',
+                    url: url
+                }).catch((err) => {
+                    console.log('Teilen abgebrochen oder fehlgeschlagen', err);
+                    // Fallback
+                    window.open(url, '_blank');
+                });
+            } else {
+                // Fallback für Browser, die navigator.share nicht unterstützen
+                prompt("Kopiere diesen Link, um die Route in Google Maps zu teilen:", url);
+                window.open(url, '_blank');
+            }
+        };
+
+        function drawRouteOnMap(legsData, stops) {
+            if (!currentMap) initMap();
+            routeLayers.forEach(l => currentMap.removeLayer(l)); routeLayers = [];
+            markerLayers.forEach(m => currentMap.removeLayer(m)); markerLayers = [];
+            
+            if (legsData && legsData.length > 0) {
+                const hasAbreise = stops.some(s => s.type === 'abreise');
+                const hasAnreise = stops.some(s => s.type === 'anreise');
+                let lastAbreiseIdx = -1;
+                stops.forEach((s, idx) => { if (s.type === 'abreise') lastAbreiseIdx = idx; });
+
+                let firstAnreiseIdxEmpty = -1;
+                for (let i = 0; i < stops.length; i++) {
+                    if (stops[i].type === 'anreise') { firstAnreiseIdxEmpty = i; break; }
+                }
+
+                let lastAbreiseIdxEmpty = -1;
+                if (firstAnreiseIdxEmpty !== -1) {
+                    for (let i = firstAnreiseIdxEmpty - 1; i >= 0; i--) {
+                        if (stops[i].type === 'abreise') { lastAbreiseIdxEmpty = i; break; }
+                    }
+                } else {
+                    for (let i = stops.length - 1; i >= 0; i--) {
+                        if (stops[i].type === 'abreise') { lastAbreiseIdxEmpty = i; break; }
+                    }
+                }
+
+                let emptyStartIdx = -1;
+                let emptyEndIdx = -1;
+                if (lastAbreiseIdxEmpty !== -1 && firstAnreiseIdxEmpty !== -1) {
+                    emptyStartIdx = lastAbreiseIdxEmpty; emptyEndIdx = firstAnreiseIdxEmpty;
+                } else if (firstAnreiseIdxEmpty !== -1) {
+                    emptyStartIdx = 0; emptyEndIdx = firstAnreiseIdxEmpty;
+                } else if (lastAbreiseIdxEmpty !== -1) {
+                    emptyStartIdx = lastAbreiseIdxEmpty; emptyEndIdx = stops.length - 1;
+                }
+                
+                legsData.forEach((leg, index) => {
+                    const toStop = stops[index + 1]; 
+                    
+                    let isEmptyLeg = false;
+                    if (emptyStartIdx !== -1 && emptyEndIdx !== -1 && emptyStartIdx < emptyEndIdx) {
+                        if (index >= emptyStartIdx && index < emptyEndIdx) {
+                            isEmptyLeg = true;
+                        }
+                    }
+
+                    if (isEmptyLeg) {
+                        const polyYellow = L.polyline(leg, { color: '#ffff00', weight: 6, opacity: 0.8 }).addTo(currentMap);
+                        const polyRedDash = L.polyline(leg, { color: '#ff0000', weight: 6, opacity: 1, dashArray: '10, 10' }).addTo(currentMap);
+                        routeLayers.push(polyYellow, polyRedDash);
+                    } else {
+                        let color = '#3b82f6'; 
+                        if (toStop && toStop.type === 'wegpunkt') { color = '#059669'; } 
+                        else if (!hasAbreise && hasAnreise) { color = '#f97316'; } 
+                        else if (hasAbreise && hasAnreise) { color = (index + 1 <= lastAbreiseIdx) ? '#3b82f6' : '#f97316'; } 
+                        else if (toStop && toStop.type === 'anreise') { color = '#f97316'; }
+                        const poly = L.polyline(leg, { color: color, weight: 6, opacity: 0.8 }).addTo(currentMap);
+                        routeLayers.push(poly);
+                    }
+                });
+            }
+            
+            stops.forEach((stop, index) => {
+                if (stop.lat && stop.lon) {
+                    let color = '#1d4ed8'; 
+                    if (stop.type === 'klinik') { color = '#dc2626'; }
+                    else if (stop.type === 'anreise') { color = '#ea580c'; }
+                    else if (stop.type === 'wegpunkt') { color = '#059669'; }
+                    const marker = L.marker([stop.lat, stop.lon], { icon: L.divIcon({ className: '', html: `<div style="background-color: ${color}; color: white; border-radius: 50%; width: 24px; height: 24px; line-height: 20px; text-align: center; font-weight: bold; border: 2px solid white; font-size: 11px; box-shadow: 0 2px 4px rgba(0,0,0,0.3);">${index + 1}</div>`, iconSize: [24, 24] }) }).addTo(currentMap);
+                    markerLayers.push(marker);
+                }
+            });
+            if (markerLayers.length > 0) currentMap.fitBounds(new L.FeatureGroup(markerLayers).getBounds(), { padding: [50, 50] });
+        }
+
+        function addManualToMemory() {
+            const editId = document.getElementById('mem-id-edit').value;
+            const name = document.getElementById('mem-name').value; 
+            const addr = document.getElementById('mem-addr').value; 
+            let arrival = document.getElementById('mem-date').value;
+            let departure = document.getElementById('mem-date-out').value;
+            const altAddr = document.getElementById('mem-addr-alt').value;
+            const status = document.querySelector('input[name="mem-status-choice"]:checked').value;
+
+            // Datum automatisch setzen falls leer
+            if (!arrival && status === 'anreise') arrival = getTodayISO();
+            if (!departure && status === 'abreise') departure = getTodayISO();
+
+            if (!name || (!addr && !altAddr)) {
+                return alert("Fehlende Daten: Name und mindestens eine Adresse (Heimat oder Klinik) werden benötigt.");
+            }
+            
+            if (altAddr) saveAbholadresseToList(altAddr);
+            if (addr) saveToHistory(addr, false);
+
+            const feats = []; 
+            document.querySelectorAll('#feat-container input:checked').forEach(i => { if(i.value) feats.push(i.value); });
+            let memory = JSON.parse(localStorage.getItem('patientMemory') || '[]');
+            const pData = { 
+                id: editId || ("ID-" + Date.now()), 
+                name, 
+                phone: document.getElementById('mem-phone').value, 
+                address: addr, 
+                addressAlt: altAddr, 
+                arrivalDate: arrival, 
+                departureDate: departure, 
+                status: status, 
+                features: feats,
+                isLoaded: editId ? (memory.find(x => x.id === editId)?.isLoaded || false) : false
+            };
+            if (editId) {
+                const idx = memory.findIndex(p => p.id === editId);
+                if (idx !== -1) memory[idx] = pData;
+            } else {
+                memory.push(pData);
+            }
+            localStorage.setItem('patientMemory', JSON.stringify(memory)); 
+            resetMemoryForm(); 
+            showPatientMemory();
+        }
+
+        function resetMemoryForm() { 
+            ['mem-id-edit', 'mem-name', 'mem-phone', 'mem-addr', 'mem-addr-alt', 'mem-date', 'mem-date-out', 'excel-import-area', 'word-import-abreise-mass'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.value = '';
+            });
+            document.querySelectorAll('#feat-container input').forEach(i => i.checked = false);
+            document.getElementById('status-anreise').checked = true;
+        }
+
+        function editMemoryEntry(pid) {
+            let memory = JSON.parse(localStorage.getItem('patientMemory') || '[]');
+            const p = memory.find(x => x.id === pid);
+            if (!p) return;
+            document.getElementById('mem-id-edit').value = p.id;
+            document.getElementById('mem-name').value = p.name;
+            document.getElementById('mem-phone').value = p.phone || '';
+            document.getElementById('mem-addr').value = p.address;
+            document.getElementById('mem-addr-alt').value = p.addressAlt || '';
+            document.getElementById('mem-date').value = p.arrivalDate;
+            document.getElementById('mem-date-out').value = p.departureDate || '';
+            document.getElementById('status-' + p.status).checked = true;
+            document.querySelectorAll('#feat-container input').forEach(i => { i.checked = p.features && p.features.includes(i.value); });
+            document.getElementById('mem-name').focus();
+        }
+
+        function getAbreiseStatusClass(departureDate) {
+            const today = new Date(); today.setHours(0,0,0,0);
+            const depDate = new Date(departureDate); depDate.setHours(0,0,0,0);
+            const diffDays = (depDate - today) / (1000 * 60 * 60 * 24);
+            if (diffDays <= 1) return 'status-urgent'; if (diffDays < 5) return 'status-soon'; return 'status-relaxed';
+        }
+
+        window.updatePatientDate = function(pid, field, value) {
+            let memory = JSON.parse(localStorage.getItem('patientMemory') || '[]');
+            const idx = memory.findIndex(p => p.id === pid);
+            if (idx !== -1) { memory[idx][field] = value; localStorage.setItem('patientMemory', JSON.stringify(memory)); showPatientMemory(targetStopIndex); }
+        };
+
+        window.moveStatus = function(pid, targetStatus) {
+            let memory = JSON.parse(localStorage.getItem('patientMemory') || '[]');
+            const idx = memory.findIndex(p => p.id === pid);
+            if (idx !== -1) { memory[idx].status = targetStatus; localStorage.setItem('patientMemory', JSON.stringify(memory)); showPatientMemory(targetStopIndex); }
+        };
+
+        function showPatientMemory(idx = null) {
+            cleanupMemory();
+            targetStopIndex = idx;
+            const listAnreise = document.getElementById('memoryListAnreise');
+            const listAbreise = document.getElementById('memoryListAbreise');
+            let memory = JSON.parse(localStorage.getItem('patientMemory') || '[]');
+            listAnreise.innerHTML = ''; listAbreise.innerHTML = '';
+
+            const sortedAnreise = memory.filter(p => p.status === 'anreise' && !p.isLoaded).sort((a,b) => new Date(a.arrivalDate) - new Date(b.arrivalDate));
+            const sortedAbreise = memory.filter(p => p.status === 'abreise' && !p.isLoaded).sort((a,b) => new Date(a.departureDate) - new Date(b.departureDate));
+
+            const renderCard = (p) => {
+                const isAbreise = (p.status === 'abreise');
+                const statusClass = isAbreise ? getAbreiseStatusClass(p.departureDate) : 'anreise-card';
+                const fStr = p.features && p.features.length > 0 ? `<span class="ml-2 feat-red text-[10px] uppercase font-bold">[${p.features.join(', ')}]</span>` : "";
+                
+                const textAddr = p.status === 'anreise' && p.addressAlt ? '🏥 ' + p.addressAlt : p.address;
+                
+                return `<div class="memory-card relative bg-white border border-gray-200 p-3 rounded-lg shadow-sm hover:shadow-md transition ${statusClass}">
+                    <div class="flex justify-between items-start mb-1">
+                        <div onclick="editMemoryEntry('${p.id}')" class="font-black text-blue-900 uppercase text-xs truncate flex-grow cursor-pointer">${p.name}${fStr}</div>
+                        <div class="flex gap-2 ml-2">
+                            <button onclick="window.loadFromMemory('${p.id}', '${p.status}')" class="bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-bold py-1 px-3 rounded shadow uppercase">Laden</button>
+                            <button onclick="window.deleteMemoryEntry('${p.id}')" class="text-red-600 hover:text-red-800 bg-red-100 hover:bg-red-200 font-black text-sm px-2 py-0.5 rounded transition shadow-sm" title="Patient löschen">✕</button>
+                        </div>
+                    </div>
+                    <div class="text-[10px] text-gray-600 italic mb-2 truncate">${textAddr}</div>
+                    <div class="flex gap-4 items-center">
+                        <div class="flex flex-col"><label class="text-[8px] font-bold uppercase text-blue-500">Anreise</label><input type="date" value="${p.arrivalDate}" onchange="updatePatientDate('${p.id}', 'arrivalDate', this.value)" class="bg-transparent border-none p-0 text-[10px] font-bold outline-none"></div>
+                        <div class="flex flex-col"><label class="text-[8px] font-bold uppercase text-orange-500">Abreise</label><input type="date" value="${p.departureDate}" onchange="updatePatientDate('${p.id}', 'departureDate', this.value)" class="bg-transparent border-none p-0 text-[10px] font-bold outline-none"></div>
+                    </div>
+                </div>`;
+            };
+            sortedAnreise.forEach(p => listAnreise.innerHTML += renderCard(p));
+            sortedAbreise.forEach(p => listAbreise.innerHTML += renderCard(p));
+            document.getElementById('memoryModal').classList.remove('hidden');
+            filterMemory();
+        }
+
+        function filterMemory() {
+            const v = document.getElementById('memorySearch').value.toLowerCase();
+            document.querySelectorAll('.memory-card').forEach(c => c.style.display = c.innerText.toLowerCase().includes(v) ? 'block' : 'none');
+        }
+
+        window.loadFromMemory = (pid, currentStatus) => {
+            let memory = JSON.parse(localStorage.getItem('patientMemory') || '[]');
+            const idx = memory.findIndex(x => x.id === pid);
+            if (idx === -1) return;
+            const p = memory[idx];
+            
+            p.isLoaded = true;
+            localStorage.setItem('patientMemory', JSON.stringify(memory));
+            const inst = instanceData.find(i => i.id === activeTabId);
+            if (inst) {
+                const fStr = p.features && p.features.length > 0 ? ` [${p.features.join(',')}]` : "";
+                
+                const info = p.name + fStr + (p.phone ? ` | Tel: ${p.phone}` : "");
+                let addr = (currentStatus === 'anreise' && p.addressAlt) ? p.addressAlt : p.address;
+                
+                if (targetStopIndex !== null) inst.updateStopFromMemory(targetStopIndex, addr, info, currentStatus, p.id);
+                else inst.addStopFromMemory(addr, info, currentStatus, p.id);
+                saveAll();
+                document.getElementById('memoryModal').classList.add('hidden');
+                showPatientMemory();
+            }
+        };
+
+        window.deleteMemoryEntry = (pid) => {
+            if (confirm("Löschen?")) {
+                let memory = JSON.parse(localStorage.getItem('patientMemory') || '[]');
+                localStorage.setItem('patientMemory', JSON.stringify(memory.filter(p => p.id !== pid)));
+                showPatientMemory();
+            }
+        };
+
+        window.clearAbreiseList = () => {
+            if (confirm("Möchten Sie wirklich die gesamte Abreiseliste löschen?")) {
+                let memory = JSON.parse(localStorage.getItem('patientMemory') || '[]');
+                localStorage.setItem('patientMemory', JSON.stringify(memory.filter(p => p.status !== 'abreise')));
+                showPatientMemory();
+            }
+        };
+
+        window.clearAnreiseList = () => {
+            if (confirm("Möchten Sie wirklich die gesamte Anreiseliste löschen?")) {
+                let memory = JSON.parse(localStorage.getItem('patientMemory') || '[]');
+                localStorage.setItem('patientMemory', JSON.stringify(memory.filter(p => p.status !== 'anreise')));
+                showPatientMemory();
+            }
+        };
+
+        function addNewTab(savedData = null) {
+            const id = savedData ? savedData.id : ++tabCounter;
+            if (!savedData && id > tabCounter) tabCounter = id;
+            const cont = document.createElement('div');
+            cont.id = `tab-content-${id}`;
+            cont.className = "tab-content absolute inset-0 hidden calculator-scroll-area border-l border-gray-300 no-print";
+            
+            const title = savedData ? savedData.title : appSettings.defaultTabName;
+            
+            // --- HIER WURDE DER SHARE-BUTTON EINGEBAUT ---
+            cont.innerHTML = `<div class="p-6 h-full flex flex-col"><h2 contenteditable="true" onblur="handleTitleChange(${id}, this)" class="tour-title text-2xl font-black italic text-gray-700 outline-none uppercase mb-4">${title}</h2><div class="flex flex-row items-center gap-4 bg-[#f8fafc] border border-blue-100 p-3 rounded-xl mb-4 shadow-sm"><div class="flex flex-col flex-1"><label class="text-[10px] font-bold uppercase text-blue-800 ml-1 mb-1">Tour-Datum</label><input type="date" class="tourDate p-2 border border-gray-200 rounded-md text-sm font-bold shadow-sm w-full outline-none focus:border-blue-500" onchange="saveAll()"></div><div class="flex flex-col flex-1"><label class="text-[10px] font-bold uppercase text-blue-800 ml-1 mb-1">Abfahrt Klinik</label><select class="startTime w-full p-2 border border-gray-200 rounded-md text-sm font-bold shadow-sm outline-none focus:border-blue-500" onchange="saveAll()"></select></div></div><div class="metrics-bar bg-white border border-gray-200 rounded-lg p-3 mb-4 flex justify-between items-center text-xs font-black shadow-sm no-print hidden"><div class="flex flex-col text-blue-800"><span class="text-[9px] uppercase">🛣 Gesamt</span><span class="val-gesamt text-sm">0.0 km</span></div><div class="flex flex-col text-red-600" title="Strecke ohne Patient (Leerfahrt)"><span class="text-[9px] uppercase">⚠️ Leer-KM</span><span class="val-leer text-sm">0.0 km</span></div></div><div class="stopsContainer space-y-2"></div><div class="mt-6 flex flex-col gap-2 border-t pt-4 no-print"><div class="comparison-container flex flex-col gap-1 mb-2 bg-white p-2 border rounded-lg shadow-inner"></div><button class="addStopButton w-full py-3 bg-slate-300 text-slate-900 text-sm font-black border-2 border-slate-400 rounded hover:bg-slate-400 uppercase shadow-sm transition">+ Stopp hinzufügen</button><div class="flex items-center justify-between bg-gray-50 p-3 rounded-lg border border-gray-200 mt-2"><span class="text-[10px] font-black uppercase text-gray-500 italic">Bevorzugter Modus:</span><div class="route-selector-container"><div class="route-opt ${(savedData && savedData.routeMode === 'fastest' || !savedData) ? 'active' : ''}" data-mode="fastest" onclick="setRouteMode(this)">Schnellste</div><div class="route-opt ${(savedData && savedData.routeMode === 'eco') ? 'active' : ''}" data-mode="eco" onclick="setRouteMode(this)">Sparsamste</div><div class="route-opt ${(savedData && savedData.routeMode === 'shortest') ? 'active' : ''}" data-mode="shortest" onclick="setRouteMode(this)">Kürzeste</div></div></div><button class="optimizeButton w-full py-4 bg-blue-600 text-white font-black rounded-lg shadow-xl hover:bg-blue-700 uppercase transition-all mt-2">📍 Route berechnen</button><button onclick="shareCurrentRoute()" class="w-full py-3 bg-green-600 text-white font-black rounded-lg shadow-xl hover:bg-green-700 uppercase transition-all mt-2">🔗 Route Teilen (Google Maps)</button><button onclick="clearFullPlaner()" class="w-full py-2 bg-red-200 text-red-800 text-[10px] font-bold rounded hover:bg-red-300 uppercase transition border border-red-400 mt-2 mb-8">🗑 Planer löschen</button></div></div>`;
+            document.getElementById('tabs-content').appendChild(cont);
+            
+            const btn = document.createElement('button');
+            btn.id = `tab-btn-${id}`; btn.className = "tab-btn px-4 py-2 text-xs font-bold uppercase rounded-t-lg border-x border-t border-gray-300 transition flex items-center gap-2";
+            btn.onclick = () => switchTab(id);
+            btn.innerHTML = `<span class="truncate max-w-[100px]">${title}</span><span onclick="event.stopPropagation(); removeTab(${id})" class="text-gray-400 hover:text-red-500">✕</span>`;
+            document.getElementById('tabs-header').appendChild(btn);
+
+            instanceData.push(initCalculatorInstance(cont, id, savedData));
+            switchTab(id);
+        }
+
+        function handleTitleChange(id, elem) { 
+            const tabBtn = document.querySelector(`#tab-btn-${id} span`); 
+            if (tabBtn) tabBtn.innerText = elem.innerText || appSettings.defaultTabName; 
+            saveAll(); 
+        }
+
+        function setRouteMode(el) {
+            const parent = el.parentElement; 
+            parent.querySelectorAll('.route-opt').forEach(opt => opt.classList.remove('active')); 
+            el.classList.add('active');
+            
+            const tabContainer = el.closest('.tab-content');
+            if (!tabContainer) return;
+            const tabId = parseInt(tabContainer.id.replace('tab-content-', ''));
+            
+            const inst = instanceData.find(i => i.id === tabId);
+            if (inst && inst.comparisonData) {
+                inst.applyModeData(el.dataset.mode);
+            }
+            saveAll();
+        }
+
+        function switchTab(id) {
+            activeTabId = id; document.querySelectorAll('.tab-content').forEach(c => c.classList.add('hidden')); document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById(`tab-content-${id}`).classList.remove('hidden'); document.getElementById(`tab-btn-${id}`).classList.add('active');
+            const inst = instanceData.find(i => i.id === id); if (inst) drawRouteOnMap(inst.legsData, inst.tourStops);
+            document.getElementById(`tab-btn-${id}`).scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+        }
+
+        function removeTab(id) {
+            if (instanceData.length === 1) return alert("Ein Auto muss bleiben!");
+            if (!confirm("Auto löschen?")) return;
+            instanceData = instanceData.filter(i => i.id !== id);
+            document.getElementById(`tab-content-${id}`).remove(); document.getElementById(`tab-btn-${id}`).remove();
+            if (activeTabId === id) switchTab(instanceData[0].id);
+            saveAll();
+        }
+
+        function initCalculatorInstance(root, id, saved) {
+            let tourStops = saved ? saved.tourStops : [{address: appSettings.defaultStartAddr, arrStr: '---', depStr: '---', type: 'klinik', name: appSettings.typeLabels.klinik}];
+            let legsData = saved ? saved.legsData : [];
+            let totalDist = saved ? saved.totalDist : 0;
+            let totalPureMin = saved ? saved.totalPureMin : 0;
+            let totalWithBufferMin = saved ? saved.totalWithBufferMin : 0;
+            let comparisonData = saved ? saved.comparisonData : null;
+
+            const container = root.querySelector('.stopsContainer');
+            const dateInput = root.querySelector('.tourDate');
+            const timeSelect = root.querySelector('.startTime');
+            const optBtn = root.querySelector('.optimizeButton');
+            const compareContainer = root.querySelector('.comparison-container');
+
+            dateInput.value = saved ? saved.tourDate : getTomorrowISO();
+            for (let h=2; h<22; h++) { for (let m=0; m<60; m+=15) { const t = minToTime(h*60 + m); timeSelect.innerHTML += `<option value="${t}" ${saved && saved.startT === t ? 'selected' : ''}>${t} Uhr</option>`; } }
+            if (!saved) timeSelect.value = "08:15";
+
+            new Sortable(container, { handle: '.drag-handle', animation: 150, onEnd: function() {
+                const newStops = []; container.querySelectorAll('.stop-row').forEach(row => { const originalIndex = parseInt(row.dataset.idx); newStops.push(tourStops[originalIndex]); });
+                tourStops = newStops; render(); saveAll();
+            } });
+
+            function render() {
+                container.innerHTML = ''; compareContainer.innerHTML = '';
+                const activeMode = root.querySelector('.route-opt.active')?.dataset.mode || 'fastest';
+                
+                if (comparisonData) {
+                    ['fastest', 'eco', 'shortest'].forEach(mode => {
+                        const data = comparisonData[mode];
+                        if (data) {
+                            const label = mode === 'fastest' ? 'Schnellste' : (mode === 'eco' ? 'Sparsamste' : 'Kürzeste');
+                            const isActive = activeMode === mode;
+                            const row = document.createElement('div');
+                            row.className = `route-comparison-row ${isActive ? 'active' : 'text-gray-500 opacity-80'}`;
+                            row.innerHTML = `<span class="font-bold">${label}:</span><div class="flex justify-between"><span>${data.dist.toFixed(1)} km</span><span>Fahrzeit: ${Math.floor(data.pure/60)}:${String(data.pure%60).padStart(2,'0')}h</span><span>Gesamt: ${Math.floor(data.total/60)}:${String(data.total%60).padStart(2,'0')}h</span></div>`;
+                            compareContainer.appendChild(row);
+                        }
+                    });
+                } else { compareContainer.innerHTML = '<div class="text-[9px] text-gray-400 italic text-center py-2">Noch keine Route berechnet</div>'; }
+
+                tourStops.forEach((s, i) => {
+                    const div = document.createElement('div');
+                    let rStyle = s.type === 'klinik' ? 'bg-red-100 border-red-500' : (s.type === 'anreise' ? 'bg-orange-100 border-orange-500' : (s.type === 'wegpunkt' ? 'bg-emerald-100 border-emerald-500' : 'bg-blue-50 border-blue-400'));
+                    div.className = `stop-row p-3 border-2 rounded-xl flex items-center shadow-sm relative overflow-hidden transition-all ${rStyle}`;
+                    div.dataset.idx = i;
+                    
+                    let timeContent = '';
+                    if (i === 0) {
+                        timeContent = `<div class="text-[14px] font-black text-gray-900">${s.depStr}</div><div class="text-[9px] font-bold text-gray-600 uppercase">Abfahrt</div>`;
+                    } else if (s.type === 'wegpunkt') {
+                        timeContent = `<div class="text-[14px] font-black text-gray-900">${s.arrStr}</div><div class="text-[9px] font-bold text-gray-600 uppercase">Ankunft</div>`;
+                    } else {
+                        timeContent = `
+                            <div class="flex flex-col items-end leading-tight">
+                                <div class="flex items-baseline gap-2">
+                                    <span class="text-[12px] font-bold text-gray-900 uppercase">Ankunft</span><br>
+                                    <span class="text-[14px] font-black text-gray-900">${s.arrStr}</span>
+                                </div>
+                                <div class="flex items-baseline gap-2">
+                                    <span class="text-[8px] font-bold text-gray-600 uppercase">Abfahrt</span><br>
+                                    <span class="text-[8px] font-black text-gray-600">${s.depStr}</span>
+                                </div>
+                            </div>`;
+                    }
+                    
+                    const timeHtml = `<div class="flex flex-col items-end min-w-[85px] border-l pl-3 ml-3">${timeContent}</div>`;
+                    
+                    const distHtml = (i > 0 && s.distFromPrev) ? `<div class="absolute top-0 right-0 bg-blue-100 text-blue-800 text-[8px] font-black px-1.5 py-0.5 rounded-bl italic border-l border-b border-blue-200">${s.distFromPrev}</div>` : '';
+                    const displayName = s.name || '';
+                    const backBtnHtml = s.patientId ? '<button class="btn-back text-blue-500 hover:text-blue-700 transition" title="Zurück in den Speicher">↩</button>' : '';
+                    
+                    div.innerHTML = `${distHtml}<div class="drag-handle mr-3 opacity-60 hover:opacity-100 text-gray-500 transition">⠿</div><div class="flex-grow flex flex-col gap-1 min-w-0"><div><input type="text" list="waypoint-address-list" class="inp-addr w-full bg-transparent font-bold text-[11px] text-gray-800 border-none outline-none placeholder-gray-400" placeholder="Adresse eingeben..." value="${s.address}"></div><div class="flex items-center gap-2"><select class="sel-type text-[9px] font-black uppercase border rounded bg-white px-1"><option value="abreise" ${s.type==='abreise'?'selected':''}>🏠 ${appSettings.typeLabels.abreise}</option><option value="anreise" ${s.type==='anreise'?'selected':''}>🚚 ${appSettings.typeLabels.anreise}</option><option value="wegpunkt" ${s.type==='wegpunkt'?'selected':''}>📍 ${appSettings.typeLabels.wegpunkt}</option><option value="klinik" ${s.type==='klinik'?'selected':''}>🏥 ${appSettings.typeLabels.klinik}</option></select><div contenteditable="true" class="inp-name-div flex-grow text-[10px] italic bg-transparent outline-none" data-placeholder="Name/Info...">${displayName}</div></div></div>${timeHtml}<div class="no-print flex flex-col gap-1 ml-2">${backBtnHtml}<button onclick="showPatientMemory(${i})" class="text-gray-300 hover:text-blue-500 transition">📂</button><button class="btn-del text-red-600 hover:text-red-800 bg-red-100 hover:bg-red-200 p-1.5 rounded transition shadow-sm" title="Löschen">🗑</button></div>`;
+                    
+                    div.querySelector('.inp-addr').onchange = async (e) => { 
+                        s.address = e.target.value; s.lat = null; 
+                        if (s.type === 'wegpunkt') { s.name = extractCity(s.address); div.querySelector('.inp-name-div').innerText = s.name; saveToHistory(s.address, true); }
+                        saveAll(); 
+                    };
+                    div.querySelector('.sel-type').onchange = (e) => { 
+                        s.type = e.target.value; 
+                        if (s.type === 'klinik') { s.address = appSettings.defaultStartAddr; s.name = appSettings.typeLabels.klinik; s.lat = null; } 
+                        else if (s.type === 'wegpunkt') { s.name = extractCity(s.address); }
+                        render(); saveAll(); 
+                    };
+                    const nameDiv = div.querySelector('.inp-name-div');
+                    nameDiv.onblur = (e) => { s.name = e.target.innerText; saveAll(); };
+                    
+                    const backBtn = div.querySelector('.btn-back');
+                    if (backBtn) {
+                        backBtn.onclick = () => {
+                            if (s.patientId) {
+                                let memory = JSON.parse(localStorage.getItem('patientMemory') || '[]');
+                                const pIdx = memory.findIndex(p => p.id === s.patientId);
+                                if (pIdx !== -1) {
+                                    memory[pIdx].isLoaded = false;
+                                    localStorage.setItem('patientMemory', JSON.stringify(memory));
+                                    showPatientMemory();
+                                }
+                            }
+                            tourStops.splice(i, 1); render(); saveAll();
+                        };
+                    }
+                    div.querySelector('.btn-del').onclick = () => { tourStops.splice(i, 1); render(); saveAll(); };
+                    container.appendChild(div);
+                });
+                
+                if (activeTabId === id) drawRouteOnMap(legsData, tourStops);
+
+                let emptyKm = 0;
+                let lastAbreiseIdx = -1;
+                let firstAnreiseIdx = -1;
+
+                for (let i = 0; i < tourStops.length; i++) {
+                    if (tourStops[i].type === 'anreise') {
+                        firstAnreiseIdx = i;
+                        break;
+                    }
+                }
+
+                if (firstAnreiseIdx !== -1) {
+                    for (let i = firstAnreiseIdx - 1; i >= 0; i--) {
+                        if (tourStops[i].type === 'abreise') {
+                            lastAbreiseIdx = i;
+                            break;
+                        }
+                    }
+                } else {
+                    for (let i = tourStops.length - 1; i >= 0; i--) {
+                        if (tourStops[i].type === 'abreise') {
+                            lastAbreiseIdx = i;
+                            break;
+                        }
+                    }
+                }
+
+                if (comparisonData && comparisonData[activeMode] && comparisonData[activeMode].legSummaries) {
+                    let startIdx = -1;
+                    let endIdx = -1;
+
+                    if (lastAbreiseIdx !== -1 && firstAnreiseIdx !== -1) {
+                        startIdx = lastAbreiseIdx;
+                        endIdx = firstAnreiseIdx;
+                    } else if (firstAnreiseIdx !== -1) {
+                        startIdx = 0;
+                        endIdx = firstAnreiseIdx;
+                    } else if (lastAbreiseIdx !== -1) {
+                        startIdx = lastAbreiseIdx;
+                        endIdx = tourStops.length - 1;
+                    }
+
+                    if (startIdx !== -1 && endIdx !== -1 && startIdx < endIdx) {
+                        for (let i = startIdx; i < endIdx; i++) {
+                            if (comparisonData[activeMode].legSummaries[i]) {
+                                emptyKm += comparisonData[activeMode].legSummaries[i].lengthInMeters / 1000;
+                            }
+                        }
+                    }
+                }
+
+                const mBar = root.querySelector('.metrics-bar');
+                if (mBar) {
+                    if (totalDist > 0) {
+                        mBar.classList.remove('hidden');
+                        mBar.querySelector('.val-gesamt').innerText = totalDist.toFixed(1) + ' km';
+                        mBar.querySelector('.val-leer').innerText = emptyKm.toFixed(1) + ' km';
+                    } else {
+                        mBar.classList.add('hidden');
+                    }
+                }
+            }
+
+            async function optimize() {
+                if (tourStops.length < 2) return;
+                optBtn.innerText = "⏳ Berechne..."; optBtn.disabled = true;
+                try {
+                    for (let s of tourStops) { 
+                        if (!s.lat || !s.lon) { 
+                            const res = await fetch(`https://api.tomtom.com/search/2/geocode/${encodeURIComponent(s.address)}.json?key=${TOMTOM_API_KEY}&limit=1&countrySet=DE`); 
+                            const data = await res.json(); 
+                            if (data.results && data.results[0]) { 
+                                s.lat = data.results[0].position.lat; 
+                                s.lon = data.results[0].position.lon; 
+                            } 
+                            await new Promise(resolve => setTimeout(resolve, 250)); 
+                        } 
+                    }
+                    const modes = ['fastest', 'eco', 'shortest']; const results = {};
+                    for (const m of modes) {
+                        const locs = tourStops.filter(s => s.lat && s.lon).map(s => `${s.lat},${s.lon}`).join(':');
+                        const url = `https://api.tomtom.com/routing/1/calculateRoute/${locs}/json?key=${TOMTOM_API_KEY}&routeType=${m}&traffic=true`;
+                        try {
+                            const res = await fetch(url); const data = await res.json(); if (!data.routes) continue;
+                            const route = data.routes[0]; let tempPure = 0; let tempCurrentTime = timeToMin(timeSelect.value);
+                            route.legs.forEach((leg, i) => {
+                                const roundedLegTime = roundTo5(Math.ceil(leg.summary.travelTimeInSeconds / 60));
+                                tempPure += roundedLegTime; tempCurrentTime += roundedLegTime;
+                                if (i < route.legs.length - 1 && tourStops[i+1].type !== 'wegpunkt') tempCurrentTime += appSettings.bufferMinutes;
+                            });
+                            results[m] = { legs: route.legs.map(l => l.points.map(p => [p.latitude, p.longitude])), dist: route.summary.lengthInMeters / 1000, pure: tempPure, total: tempCurrentTime - timeToMin(timeSelect.value), legSummaries: route.legs.map(l => l.summary) };
+                        } catch(innerErr) { console.error(innerErr); }
+                    }
+                    if (Object.keys(results).length === 0) { alert("Es konnte keine Route berechnet werden."); return; }
+                    comparisonData = results;
+                    const activeMode = root.querySelector('.route-opt.active')?.dataset.mode || 'fastest';
+                    applyModeData(activeMode);
+                } catch (e) { console.error(e); alert("Fehler bei der Berechnung."); } finally { optBtn.innerText = "📍 Route berechnen"; optBtn.disabled = false; }
+            }
+
+            function applyModeData(mode) {
+                if (!comparisonData || !comparisonData[mode]) return;
+                const data = comparisonData[mode];
+                legsData = data.legs; totalDist = data.dist; totalPureMin = data.pure; totalWithBufferMin = data.total;
+                let currentTime = timeToMin(timeSelect.value);
+                tourStops.forEach((s, i) => {
+                    if (i === 0) { s.arrStr = s.depStr = timeSelect.value; s.distFromPrev = null; }
+                    else {
+                        if (data.legSummaries && data.legSummaries[i-1]) { const legSum = data.legSummaries[i-1]; s.distFromPrev = (legSum.lengthInMeters / 1000).toFixed(1) + " km"; const roundedLegTime = roundTo5(Math.ceil(legSum.travelTimeInSeconds / 60)); currentTime += roundedLegTime; }
+                        else { s.distFromPrev = "? km"; }
+                        s.arrStr = minToTime(currentTime); if (i < tourStops.length - 1 && s.type !== 'wegpunkt') currentTime += appSettings.bufferMinutes; s.depStr = minToTime(currentTime);
+                    }
+                });
+                render(); saveAll();
+            }
+
+            root.querySelector('.addStopButton').onclick = () => { tourStops.push({address: '', arrStr: '---', depStr: '---', type: 'abreise', name: ''}); render(); saveAll(); };
+            optBtn.onclick = optimize;
+            render();
+            return { id, get tourStops() { return tourStops; }, get legsData() { return legsData; }, get totalDistanceKm() { return totalDist; }, get pureT() { return totalPureMin; }, get totalT() { return totalWithBufferMin; }, get tourDate() { return dateInput.value; }, get startT() { return timeSelect.value; }, get comparisonData() { return comparisonData; }, addStopFromMemory(addr, name, type, pid) { tourStops.push({address: addr, name, type, patientId: pid, arrStr: '---', depStr: '---'}); render(); }, updateStopFromMemory(idx, addr, name, type, pid) { tourStops[idx] = {address: addr, name, type, patientId: pid, arrStr: '---', depStr: '---'}; render(); }, addManualStop(addr, name, type, lat, lon) { tourStops.push({address: addr, name, type, lat, lon, arrStr: '---', depStr: '---'}); render(); saveAll(); }, applyModeData };
+        }
+
+        function printCombinedDoc() {
+            const container = document.getElementById('print-container'); container.innerHTML = '';
+            instanceData.forEach((inst, idx) => {
+                let rowsHtml = ''; let lastTypeGroup = '';
+                inst.tourStops.forEach((x, i) => {
+                    let currentGroup = x.type === 'klinik' ? appSettings.typeLabels.klinik + ' Start' : x.type === 'anreise' ? 'Abholung (' + appSettings.typeLabels.anreise + ')' : x.type === 'abreise' ? 'Patienten (' + appSettings.typeLabels.abreise + ')' : 'Ziel ' + appSettings.typeLabels.wegpunkt + ': ' + extractCity(x.address);
+                    if (i > 0 && currentGroup !== lastTypeGroup) rowsHtml += `<tr><td colspan="3" class="print-section-divider">--- ${currentGroup} ---</td></tr>`;
+                    lastTypeGroup = currentGroup;
+                    let tColor = '#000000'; if(x.type==='klinik') tColor='#dc2626'; else if(x.type==='wegpunkt') tColor='#059669'; else if(x.type==='anreise') tColor='#ea580c'; else if(x.type==='abreise') tColor='#1d4ed8';
+                    let nameHtml = x.name; if (nameHtml.includes('[') && nameHtml.includes(']')) nameHtml = nameHtml.replace(/\[(.*?)\]/g, '<span class="feat-red">[$1]</span>');
+                    let typeLabel = appSettings.typeLabels[x.type] || x.type;
+                    rowsHtml += `<tr class="border-b border-[#000000]"><td class="py-2 font-bold text-[10px] w-24 uppercase" style="color: ${tColor} !important;">${typeLabel}</td><td class="py-3 text-sm font-bold text-[#000000] leading-tight"><span class="print-addr text-[15px]">${x.address}</span><br><span class="print-name text-[13px] font-black text-black italic">${nameHtml}</span></td><td class="py-2 text-right font-black text-[#000000]"><span class="print-time text-[21px]">${i === 0 ? x.depStr : x.arrStr}</span></td></tr>`;
+                });
+                container.innerHTML += `<div class="page-break mb-10"><div class="bg-[#000000] text-white p-4 mb-4 flex justify-between items-center"><div class="flex flex-col"><h2 class="text-2xl font-black italic uppercase">${document.querySelector(`#tab-btn-${inst.id} span`).innerText}</h2><div class="text-[10px] font-bold opacity-80 uppercase">${fmtDt(inst.tourDate)} | ABFAHRT: ${inst.startT} UHR</div></div><div class="text-right flex flex-col items-end"><div class="text-[10px] font-bold opacity-80 uppercase">Gesamtstrecke ca.</div><div class="text-2xl font-black">${inst.totalDistanceKm.toFixed(1)} km</div></div></div><table class="w-full text-left border-collapse"><thead><tr class="border-b-2 border-black text-[10px] uppercase font-bold text-black"><th>TYP</th><th>STATION / ADRESSE</th><th class="text-right">ZEIT</th></tr></thead><tbody>${rowsHtml}</tbody></table></div>`;
+            });
+            window.print();
+        }
+
+        async function exportData() {
+            const data = {
+                memory: JSON.parse(localStorage.getItem('patientMemory') || '[]'),
+                tours: JSON.parse(localStorage.getItem('activeToursData') || '{}'),
+                abholadressen: JSON.parse(localStorage.getItem('savedAbholadressen') || '[]'),
+                globalHistory: JSON.parse(localStorage.getItem('globalAddressHistory') || '[]'),
+                waypointHistory: JSON.parse(localStorage.getItem('waypointAddressHistory') || '[]')
+            };
+            const fileName = `Planer_Backup_${getTodayISO()}.json`;
+            const jsonStr = JSON.stringify(data, null, 2);
+            
+            try {
+                // Moderne File System Access API - Erzwingt einen nativen "Speichern unter" Dialog!
+                if (window.showSaveFilePicker) {
+                    const fileHandle = await window.showSaveFilePicker({
+                        suggestedName: fileName,
+                        types: [{
+                            description: 'JSON Backup Datei',
+                            accept: {'application/json': ['.json']},
+                        }],
+                    });
+                    const writable = await fileHandle.createWritable();
+                    await writable.write(jsonStr);
+                    await writable.close();
+                    return; // Erfolgreich gespeichert
+                }
+            } catch (err) {
+                // Wenn der User im Dialog auf "Abbrechen" klickt (AbortError), tun wir nichts.
+                if (err.name === 'AbortError') return;
+                console.error("FilePicker fehlgeschlagen, nutze Fallback:", err);
+            }
+
+            // Fallback für ältere Browser oder Wrapper, die showSaveFilePicker evtl. nicht unterstützen
+            try {
+                const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(jsonStr);
+                const a = document.createElement('a');
+                a.style.display = 'none';
+                a.href = dataStr;
+                a.download = fileName;
+                document.body.appendChild(a);
+                if (document.createEvent) {
+                    const e = document.createEvent('MouseEvents');
+                    e.initEvent('click', true, true);
+                    a.dispatchEvent(e);
+                } else {
+                    a.click();
+                }
+                document.body.removeChild(a);
+            } catch (err) {
+                const blob = new Blob([jsonStr], { type: 'application/json' });
+                if (window.navigator && window.navigator.msSaveOrOpenBlob) {
+                    window.navigator.msSaveOrOpenBlob(blob, fileName);
+                } else {
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.style.display = 'none';
+                    a.href = url;
+                    a.download = fileName;
+                    document.body.appendChild(a);
+                    a.click();
+                    setTimeout(() => {
+                        document.body.removeChild(a);
+                        window.URL.revokeObjectURL(url);
+                    }, 100);
+                }
+            }
+        }
+
+        function importData(event) {
+            const file = event.target.files[0]; if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    if (data.memory) localStorage.setItem('patientMemory', JSON.stringify(data.memory));
+                    if (data.tours) localStorage.setItem('activeToursData', JSON.stringify(data.tours));
+                    if (data.abholadressen) localStorage.setItem('savedAbholadressen', JSON.stringify(data.abholadressen));
+                    if (data.globalHistory) localStorage.setItem('globalAddressHistory', JSON.stringify(data.globalHistory));
+                    if (data.waypointHistory) localStorage.setItem('waypointAddressHistory', JSON.stringify(data.waypointHistory));
+                    
+                    document.getElementById('importFile').value = ''; 
+                    location.reload();
+                } catch(err) {
+                    alert("Fehler beim Importieren. Ist die Datei ein gültiges Backup?");
+                    console.error(err);
+                }
+            };
+            reader.readAsText(file);
+        }
+        // --- MASSEN-IMPORT LOGIK ---
+        
+        let tempMassAbreisen = []; 
+        let globalMassImportDate = ""; 
+
+        async function handleAbreiseMassPaste(event) {
+            event.preventDefault();
+            const text = (event.clipboardData || window.clipboardData).getData('text');
+            if (text) {
+                document.getElementById('word-import-abreise-mass').value = "⏳ Prüfe Adressen & Ortsteile...";
+                await parseMassAbreiseText(text);
+                document.getElementById('word-import-abreise-mass').value = "✅ Gelesen!";
+                setTimeout(() => { document.getElementById('word-import-abreise-mass').value = ""; }, 1500);
+            }
+        }
+
+        async function parseMassAbreiseText(text) {
+            const cleanRawText = text.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, ' ');
+            const lines = cleanRawText.split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 2);
+            
+            let currentDate = globalMassImportDate; 
+
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i];
+                const dateMatch = line.match(/(\d{2})\.(\d{2})\.(\d{2,4})/);
+                if (dateMatch) {
+                    let year = dateMatch[3];
+                    if (year.length === 2) year = "20" + year;
+                    currentDate = `${year}-${dateMatch[2]}-${dateMatch[1]}`;
+                    globalMassImportDate = currentDate; 
+                    continue;
+                }
+
+                if (line.includes(',') && !line.includes('Seite') && !line.includes('Taxianmeldung') && currentDate !== "") {
+                    let name = line.trim();
+                    let addressLine = lines[i + 1] || "";
+                    
+                    if (addressLine.match(/\d{5}/)) {
+                        let cleanAddress = addressLine.replace(/\s[A-Z]{2,4}$/, '').trim();
+                        let features = [];
+                        
+                        if (name.includes("TS") || addressLine.includes("TS") || name.toUpperCase().includes("TRANSPORTSCHEIN")) {
+                            features.push("TRANSPORTSCHEIN", "TS");
+                        }
+
+                        name = name.replace(/,\s*TS\b|\bTS\s*,|\bTS\b/gi, '').trim();
+                        cleanAddress = cleanAddress.replace(/,\s*TS\b|\bTS\s*,|\bTS\b/gi, '').trim();
+
+                        cleanAddress = await enhanceAddressWithOrtsteil(cleanAddress);
+                        await new Promise(resolve => setTimeout(resolve, 250)); // Rate-Limiting Schutz
+
+                        tempMassAbreisen.push({
+                            id: 'ID-' + Date.now() + '-' + Math.floor(Math.random() * 1000),
+                            name: name,
+                            address: cleanAddress,
+                            addressAlt: "",
+                            phone: "",
+                            arrivalDate: "",
+                            departureDate: currentDate,
+                            status: "abreise",
+                            features: features,
+                            isLoaded: false
+                        });
+                        i++; 
+                    }
+                }
+            }
+
+            if (tempMassAbreisen.length > 0) {
+                renderMassAbreisePreview();
+            } else {
+                alert("Keine Patienten erkannt. Tipp: Word-Tabelle markieren, kopieren (Strg+C) und hier einfügen (Strg+V).");
+            }
+        }
+
+        function renderMassAbreisePreview() {
+            const container = document.getElementById('massen-import-preview-container');
+            const body = document.getElementById('massen-import-preview-body');
+            body.innerHTML = "";
+            tempMassAbreisen.forEach(p => {
+                const dateStr = p.departureDate.split('-').reverse().join('.');
+                const hasTS = p.features.includes("TRANSPORTSCHEIN") ? '<span class="text-red-600 font-bold">Ja</span>' : '<span class="text-gray-400">-</span>';
+                body.innerHTML += `<tr class="border-b border-emerald-100"><td class="p-1">${dateStr}</td><td class="p-1 font-bold">${p.name}</td><td class="p-1 text-gray-600 truncate max-w-[150px]">${p.address}</td><td class="p-1 text-center">${hasTS}</td></tr>`;
+            });
+            container.classList.remove('hidden');
+        }
+
+        function confirmMassImport() {
+            if (tempMassAbreisen.length === 0) return;
+            let memory = JSON.parse(localStorage.getItem('patientMemory') || '[]');
+            memory = [...memory, ...tempMassAbreisen];
+            localStorage.setItem('patientMemory', JSON.stringify(memory));
+            alert(`Erfolg! ${tempMassAbreisen.length} Abreisen gespeichert.`);
+            tempMassAbreisen = [];
+            document.getElementById('massen-import-preview-container').classList.add('hidden');
+            showPatientMemory();
+        }
+
+        // --- NEU: Datei-Upload Handler für Excel ---
+        async function handleExcelFileUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const originalText = event.target.previousElementSibling.innerText;
+            event.target.previousElementSibling.innerText = "⏳ Lese Datei & Adressen...";
+
+            const reader = new FileReader();
+            reader.onload = async (e) => {
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, { type: 'array' });
+                const firstSheetName = workbook.SheetNames[0];
+                const worksheet = workbook.Sheets[firstSheetName];
+                
+                const rows = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+                
+                let count = 0;
+                // Ignoriert Header, sucht in jeder Zeile nach "T", "TKH" oder "Zug"
+                for (let i = 0; i < rows.length; i++) {
+                    const row = rows[i];
+                    if (!row || row.length < 4) continue;
+
+                    const vermerk = String(row[3] || "").trim(); // Spalte D (Index 3)
+                    
+                    if (!["T", "TKH", "Zug"].includes(vermerk)) continue;
+
+                    const nachname = row[1] || "";
+                    const vorname = row[2] || "";
+                    const name = `${nachname} ${vorname}`.trim();
+                    const homeAddr = `${row[4] || ""} ${row[5] || ""}, ${row[6] || ""}`.trim(); // PLZ Ort, Straße
+                    
+                    let abholAddr = "";
+                    if (vermerk === "TKH") {
+                        const klinikName = String(row[8] || "").trim(); // Spalte I
+                        abholAddr = await autoSearchClinic(klinikName);
+                    } else if (vermerk === "Zug") {
+                        abholAddr = "Bahnhofstr. 4a, 38889 Blankenburg";
+                    } else if (vermerk === "T") {
+                        abholAddr = homeAddr;
+                    }
+
+                    let telefon = String(row[7] || "");
+                    if (telefon) {
+                        if (telefon.startsWith('49')) telefon = '0' + telefon.substring(2);
+                        if (!telefon.includes(' ') && telefon.length > 5) {
+                            const splitPos = telefon.startsWith('01') ? 4 : 5;
+                            telefon = telefon.substring(0, splitPos) + ' ' + telefon.substring(splitPos);
+                        }
+                    }
+
+                    if (name && homeAddr) {
+                        const enhancedHomeAddr = await enhanceAddressWithOrtsteil(homeAddr);
+                        const enhancedAbholAddr = await enhanceAddressWithOrtsteil(abholAddr);
+
+                        const formattedDate = row[0] ? formatExcelDate(row[0]) : getTodayISO();
+
+                        const newPatient = {
+                            id: 'ID-' + Date.now() + '-' + Math.floor(Math.random() * 1000),
+                            name: name,
+                            address: enhancedHomeAddr,
+                            phone: telefon,
+                            addressAlt: enhancedAbholAddr,
+                            arrivalDate: formattedDate,
+                            departureDate: "",
+                            status: 'anreise',
+                            features: [],
+                            isLoaded: false
+                        };
+                        
+                        let memory = JSON.parse(localStorage.getItem('patientMemory') || '[]');
+                        memory.push(newPatient);
+                        localStorage.setItem('patientMemory', JSON.stringify(memory));
+                        count++;
+                    }
+                }
+                
+                event.target.previousElementSibling.innerText = originalText;
+                alert(`${count} Anreisen erfolgreich importiert und gefiltert!`);
+                showPatientMemory(); 
+                
+                event.target.value = ''; // Reset Input
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        // --- HIER WURDE DIE PDF LOGIK ENTFERNT UND DOC/ODT ALS STANDARD FALLBACK GESTÄRKT ---
+        async function handleWordFileUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const originalHTML = event.target.previousElementSibling.innerHTML;
+            event.target.previousElementSibling.innerText = "⏳ Lese Datei...";
+
+            const extension = file.name.toLowerCase().split('.').pop();
+
+            if (extension === 'docx') {
+                const reader = new FileReader();
+                reader.onload = async (e) => {
+                    const arrayBuffer = e.target.result;
+                    try {
+                        const result = await mammoth.extractRawText({ arrayBuffer: arrayBuffer });
+                        event.target.previousElementSibling.innerText = "⏳ Prüfe Adressen...";
+                        await parseMassAbreiseText(result.value); 
+                    } catch (error) {
+                        console.error("Fehler beim Word-Import:", error);
+                        alert("Es gab einen Fehler beim Auslesen der .docx-Datei.");
+                    }
+                    event.target.previousElementSibling.innerHTML = originalHTML;
+                    event.target.value = ''; 
+                };
+                reader.readAsArrayBuffer(file);
+            } else {
+                // Fallback für doc, odt, rtf
+                const reader = new FileReader();
+                reader.onload = async (e) => {
+                    let text = e.target.result;
+                    text = text.replace(/[^\x20-\x7E\xA0-\xFF\n\r\t]/g, ' ').replace(/\s+/g, ' ');
+                    event.target.previousElementSibling.innerText = "⏳ Prüfe Adressen...";
+                    await parseMassAbreiseText(text); 
+                    event.target.previousElementSibling.innerHTML = originalHTML;
+                    event.target.value = '';
+                };
+                reader.readAsBinaryString(file);
+            }
+        }
+
+        // --- HIER WURDE DER (TKH) FILTER FÜR DIE API EINGEBAUT ---
+        async function autoSearchClinic(query) {
+            if (!query || query.length < 3) return query;
+            let searchQuery = query.replace(/\(TKH\)/gi, '').trim(); 
+            try {
+                const url = `https://api.tomtom.com/search/2/geocode/${encodeURIComponent(searchQuery)}.json?key=${TOMTOM_API_KEY}&limit=1&countrySet=DE`;
+                const resp = await fetch(url);
+                const data = await resp.json();
+                if (data.results && data.results[0]) {
+                    const r = data.results[0];
+                    let finalAddr = r.address.freeformAddress;
+                    // Wenn TomTom einen echten POI (Klinik) gefunden hat, setze ihn vor die Adresse
+                    if (r.poi && r.poi.name) {
+                        finalAddr = r.poi.name + ", " + finalAddr;
+                    } else {
+                        // Ansonsten hänge den Excel-Namen davor, damit er sauber lesbar bleibt
+                        finalAddr = query + ", " + finalAddr;
+                    }
+                    return finalAddr;
+                }
+            } catch (err) { console.error("Adress-Suche Fehler:", err); }
+            return query;
+        }
+
+        function formatExcelDate(excelVal) {
+            if (!excelVal) return getTodayISO();
+            if (String(excelVal).includes('-')) return excelVal;
+            if (String(excelVal).includes('.')) {
+                const parts = String(excelVal).split('.');
+                if (parts.length === 3) return `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+            }
+            if (!isNaN(excelVal)) {
+                const date = new Date((excelVal - 25569) * 86400 * 1000);
+                return date.toISOString().split('T')[0];
+            }
+            return getTodayISO();
+        }
+
+        // --- UMKREIS & KORRIDOR SCANNER LOGIK ---
+
+        function deg2rad(deg) { 
+            return deg * (Math.PI/180); 
+        }
+
+        function getDistanceFromLatLonInKm(lat1, lon1, lat2, lon2) {
+            var R = 6371; 
+            var dLat = deg2rad(lat2-lat1);  
+            var dLon = deg2rad(lon2-lon1);
+            var a =
+                Math.sin(dLat/2) * Math.sin(dLat/2) +
+                Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) *
+                Math.sin(dLon/2) * Math.sin(dLon/2);
+            var c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+            var d = R * c; 
+            return d;
+        }
+
+        async function runUmkreisScanner(instId) {
+            const inst = instanceData.find(i => i.id === instId);
+            if (!inst) return;
+
+            let lastAbreise = null;
+            for (let i = inst.tourStops.length - 1; i >= 0; i--) {
+                if (inst.tourStops[i].type === 'abreise') {
+                    lastAbreise = inst.tourStops[i];
+                    break;
+                }
+            }
+
+            if (!lastAbreise) {
+                alert("Kein Abreise-Stopp in der aktuellen Tour gefunden. Der Scanner benötigt einen Absetzpunkt als Referenz.");
+                return;
+            }
+
+            if (!lastAbreise.lat || !lastAbreise.lon) {
+                try {
+                    const res = await fetch(`https://api.tomtom.com/search/2/geocode/${encodeURIComponent(lastAbreise.address)}.json?key=${TOMTOM_API_KEY}&limit=1&countrySet=DE`);
+                    const data = await res.json();
+                    if (data.results && data.results[0]) {
+                        lastAbreise.lat = data.results[0].position.lat;
+                        lastAbreise.lon = data.results[0].position.lon;
+                    } else {
+                        alert("Koordinaten für den letzten Abreise-Stopp konnten nicht ermittelt werden.");
+                        return;
+                    }
+                } catch(e) {
+                    alert("Fehler bei der Geokodierung des Wende-Punktes.");
+                    return;
+                }
+            }
+
+            let memory = JSON.parse(localStorage.getItem('patientMemory') || '[]');
+            let anreisen = memory.filter(p => p.status === 'anreise' && !p.isLoaded);
+
+            if (anreisen.length === 0) {
+                alert("Keine offenen Anreisen im Speicher gefunden.");
+                return;
+            }
+
+            document.getElementById('scanner-loading').classList.remove('hidden');
+            document.getElementById('scanner-results').innerHTML = '';
+            document.getElementById('scannerModal').classList.remove('hidden');
+
+            let updatedMemory = false;
+
+            for (let p of anreisen) {
+                let addrToGeocode = p.addressAlt ? p.addressAlt : p.address;
+                if (!p.lat || !p.lon) {
+                    try {
+                        const res = await fetch(`https://api.tomtom.com/search/2/geocode/${encodeURIComponent(addrToGeocode)}.json?key=${TOMTOM_API_KEY}&limit=1&countrySet=DE`);
+                        const data = await res.json();
+                        if (data.results && data.results[0]) {
+                            p.lat = data.results[0].position.lat;
+                            p.lon = data.results[0].position.lon;
+                            updatedMemory = true;
+                        }
+                        await new Promise(resolve => setTimeout(resolve, 250)); 
+                    } catch(e) { console.error(e); }
+                }
+            }
+
+            if (updatedMemory) {
+                let fullMemory = JSON.parse(localStorage.getItem('patientMemory') || '[]');
+                for (let p of anreisen) {
+                    if (p.lat) {
+                        let memIdx = fullMemory.findIndex(m => m.id === p.id);
+                        if (memIdx > -1) {
+                            fullMemory[memIdx].lat = p.lat;
+                            fullMemory[memIdx].lon = p.lon;
+                        }
+                    }
+                }
+                localStorage.setItem('patientMemory', JSON.stringify(fullMemory));
+            }
+
+            let results = [];
+            for (let p of anreisen) {
+                if (p.lat && p.lon) {
+                    let dist = getDistanceFromLatLonInKm(lastAbreise.lat, lastAbreise.lon, p.lat, p.lon);
+                    results.push({ patient: p, distance: dist });
+                }
+            }
+
+            results.sort((a, b) => a.distance - b.distance);
+
+            document.getElementById('scanner-loading').classList.add('hidden');
+            
+            let resHtml = '';
+            results.forEach(r => {
+                let fStr = r.patient.features && r.patient.features.length > 0 ? `<span class="text-red-500 text-[10px] uppercase font-bold">[${r.patient.features.join(', ')}]</span>` : "";
+                resHtml += `
+                <div class="flex justify-between items-center p-3 border-b border-gray-100 hover:bg-purple-50 transition">
+                    <div>
+                        <div class="font-bold text-sm text-gray-800">${r.patient.name} ${fStr}</div>
+                        <div class="text-[10px] text-gray-500 italic">${r.patient.addressAlt || r.patient.address}</div>
+                        <div class="text-xs font-black text-purple-700 mt-1">${r.distance.toFixed(1)} km Luftlinie</div>
+                    </div>
+                    <button onclick="loadFromScanner('${r.patient.id}')" class="bg-purple-600 hover:bg-purple-700 text-white text-[10px] font-bold py-1.5 px-4 rounded shadow uppercase transition">Hinzufügen</button>
+                </div>`;
+            });
+
+            if(results.length === 0) {
+                resHtml = '<div class="p-4 text-center text-gray-500 text-sm">Keine Koordinaten für Anreisen gefunden.</div>';
+            }
+
+            document.getElementById('scanner-results').innerHTML = resHtml;
+        }
+
+        window.loadFromScanner = (pid) => {
+            targetStopIndex = null; 
+            window.loadFromMemory(pid, 'anreise');
+            document.getElementById('scannerModal').classList.add('hidden');
+        }
+
+        async function runKorridorScanner(instId) {
+            const inst = instanceData.find(i => i.id === instId);
+            if (!inst) return;
+
+            let lastAbreise = null;
+            for (let i = inst.tourStops.length - 1; i >= 0; i--) {
+                if (inst.tourStops[i].type === 'abreise') {
+                    lastAbreise = inst.tourStops[i];
+                    break;
+                }
+            }
+
+            if (!lastAbreise) {
+                alert("Kein Abreise-Stopp in der aktuellen Tour gefunden. Der Korridor-Scanner benötigt einen Absetzpunkt als Referenz für die Rückfahrt.");
+                return;
+            }
+
+            let clinicLat = null;
+            let clinicLon = null;
+            try {
+                const resC = await fetch(`https://api.tomtom.com/search/2/geocode/${encodeURIComponent(appSettings.defaultStartAddr)}.json?key=${TOMTOM_API_KEY}&limit=1&countrySet=DE`);
+                const dataC = await resC.json();
+                if (dataC.results && dataC.results[0]) {
+                    clinicLat = dataC.results[0].position.lat;
+                    clinicLon = dataC.results[0].position.lon;
+                } else {
+                    alert("Klinik-Koordinaten konnten nicht ermittelt werden."); return;
+                }
+            } catch(e) {
+                alert("Fehler bei der Geokodierung der Klinik."); return;
+            }
+
+            if (!lastAbreise.lat || !lastAbreise.lon) {
+                try {
+                    const res = await fetch(`https://api.tomtom.com/search/2/geocode/${encodeURIComponent(lastAbreise.address)}.json?key=${TOMTOM_API_KEY}&limit=1&countrySet=DE`);
+                    const data = await res.json();
+                    if (data.results && data.results[0]) {
+                        lastAbreise.lat = data.results[0].position.lat;
+                        lastAbreise.lon = data.results[0].position.lon;
+                    } else {
+                        alert("Koordinaten für den letzten Abreise-Stopp konnten nicht ermittelt werden.");
+                        return;
+                    }
+                } catch(e) {
+                    alert("Fehler bei der Geokodierung des Wende-Punktes.");
+                    return;
+                }
+            }
+
+            let memory = JSON.parse(localStorage.getItem('patientMemory') || '[]');
+            let anreisen = memory.filter(p => p.status === 'anreise' && !p.isLoaded);
+
+            if (anreisen.length === 0) {
+                alert("Keine offenen Anreisen im Speicher gefunden.");
+                return;
+            }
+
+            document.getElementById('korridor-loading').classList.remove('hidden');
+            document.getElementById('korridor-results').innerHTML = '';
+            document.getElementById('korridorModal').classList.remove('hidden');
+
+            let updatedMemory = false;
+
+            for (let p of anreisen) {
+                let addrToGeocode = p.addressAlt ? p.addressAlt : p.address;
+                if (!p.lat || !p.lon) {
+                    try {
+                        const res = await fetch(`https://api.tomtom.com/search/2/geocode/${encodeURIComponent(addrToGeocode)}.json?key=${TOMTOM_API_KEY}&limit=1&countrySet=DE`);
+                        const data = await res.json();
+                        if (data.results && data.results[0]) {
+                            p.lat = data.results[0].position.lat;
+                            p.lon = data.results[0].position.lon;
+                            updatedMemory = true;
+                        }
+                        await new Promise(resolve => setTimeout(resolve, 250)); 
+                    } catch(e) { console.error(e); }
+                }
+            }
+
+            if (updatedMemory) {
+                let fullMemory = JSON.parse(localStorage.getItem('patientMemory') || '[]');
+                for (let p of anreisen) {
+                    if (p.lat) {
+                        let memIdx = fullMemory.findIndex(m => m.id === p.id);
+                        if (memIdx > -1) {
+                            fullMemory[memIdx].lat = p.lat;
+                            fullMemory[memIdx].lon = p.lon;
+                        }
+                    }
+                }
+                localStorage.setItem('patientMemory', JSON.stringify(fullMemory));
+            }
+
+            let results = [];
+            let distAC = getDistanceFromLatLonInKm(lastAbreise.lat, lastAbreise.lon, clinicLat, clinicLon);
+
+            for (let p of anreisen) {
+                if (p.lat && p.lon) {
+                    let distAP = getDistanceFromLatLonInKm(lastAbreise.lat, lastAbreise.lon, p.lat, p.lon);
+                    let distPC = getDistanceFromLatLonInKm(p.lat, p.lon, clinicLat, clinicLon);
+                    
+                    let umweg = (distAP + distPC) - distAC;
+                    results.push({ patient: p, detour: umweg, distAP: distAP });
+                }
+            }
+
+            results.sort((a, b) => a.detour - b.detour);
+
+            document.getElementById('korridor-loading').classList.add('hidden');
+            
+            let resHtml = '';
+            results.forEach(r => {
+                let fStr = r.patient.features && r.patient.features.length > 0 ? `<span class="text-red-500 text-[10px] uppercase font-bold">[${r.patient.features.join(', ')}]</span>` : "";
+                
+                let badge = '';
+                let bgClass = 'hover:bg-indigo-50';
+                if (r.detour <= 10) {
+                    badge = '<span class="bg-green-100 text-green-800 text-[9px] font-black px-2 py-0.5 rounded uppercase border border-green-300">⭐ Mitnahme-Gewinn</span>';
+                } else if (r.detour > 30) {
+                    badge = '<span class="bg-red-100 text-red-800 text-[9px] font-black px-2 py-0.5 rounded uppercase border border-red-300">⚠️ Hoher Umweg</span>';
+                }
+
+                resHtml += `
+                <div class="flex justify-between items-center p-3 border-b border-gray-100 ${bgClass} transition">
+                    <div>
+                        <div class="font-bold text-sm text-gray-800">${r.patient.name} ${fStr}</div>
+                        <div class="text-[10px] text-gray-500 italic mb-1">${r.patient.addressAlt || r.patient.address}</div>
+                        <div class="flex items-center gap-2">
+                            <div class="text-xs font-black text-indigo-700">+ ${r.detour.toFixed(1)} km Umweg</div>
+                            ${badge}
+                        </div>
+                        <div class="text-[9px] text-gray-400 font-bold mt-0.5">Entf. vom Absetzpunkt: ${r.distAP.toFixed(1)} km</div>
+                    </div>
+                    <button onclick="loadFromKorridor('${r.patient.id}')" class="bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-bold py-1.5 px-4 rounded shadow uppercase transition">Hinzufügen</button>
+                </div>`;
+            });
+
+            if(results.length === 0) {
+                resHtml = '<div class="p-4 text-center text-gray-500 text-sm">Keine Koordinaten für Anreisen gefunden.</div>';
+            }
+
+            document.getElementById('korridor-results').innerHTML = resHtml;
+        }
+
+        window.loadFromKorridor = (pid) => {
+            targetStopIndex = null; 
+            window.loadFromMemory(pid, 'anreise');
+            document.getElementById('korridorModal').classList.add('hidden');
+        }
+
+        // --- ARCHIV / BACKUP SUCHE ---
+        async function handleBackupSearch(event) {
+            const files = event.target.files;
+            if (!files || files.length === 0) return;
+
+            const searchTerm = document.getElementById('memorySearch').value.trim().toLowerCase();
+            if (!searchTerm) {
+                alert("Bitte gib zuerst einen Namen in das Suchfeld ein, bevor du die Archiv-Suche startest.");
+                event.target.value = ""; 
+                return;
+            }
+
+            document.getElementById('backupSearchTermDisplay').innerText = searchTerm;
+            document.getElementById('backupSearchFilesCount').innerText = files.length;
+            document.getElementById('backup-search-results').innerHTML = '';
+            document.getElementById('backup-search-loading').classList.remove('hidden');
+            document.getElementById('backupSearchModal').classList.remove('hidden');
+
+            let allResults = [];
+            let seenKeys = new Set(); 
+
+            for (let i = 0; i < files.length; i++) {
+                const file = files[i];
+                try {
+                    const fileContent = await readFileAsync(file);
+                    const data = JSON.parse(fileContent);
+
+                    if (data.memory && Array.isArray(data.memory)) {
+                        data.memory.forEach(p => {
+                            if (p.name && p.name.toLowerCase().includes(searchTerm)) {
+                                let addr = p.addressAlt || p.address;
+                                let key = p.name.toLowerCase() + "|" + addr.toLowerCase();
+                                if (!seenKeys.has(key)) {
+                                    seenKeys.add(key);
+                                    allResults.push({
+                                        name: p.name,
+                                        address: addr,
+                                        source: file.name,
+                                        type: p.status === 'anreise' ? 'Anreise' : 'Abreise',
+                                        features: p.features || []
+                                    });
+                                }
+                            }
+                        });
+                    }
+
+                    if (data.tours && data.tours.tours && Array.isArray(data.tours.tours)) {
+                        data.tours.tours.forEach(tour => {
+                            if (tour.tourStops && Array.isArray(tour.tourStops)) {
+                                tour.tourStops.forEach(stop => {
+                                    if (stop.name && stop.name.toLowerCase().includes(searchTerm)) {
+                                        let addr = stop.address;
+                                        let key = stop.name.toLowerCase() + "|" + addr.toLowerCase();
+                                        if (!seenKeys.has(key)) {
+                                            seenKeys.add(key);
+                                            allResults.push({
+                                                name: stop.name,
+                                                address: addr,
+                                                source: `Tour: ${tour.title || 'Unbekannt'} (${file.name})`,
+                                                type: stop.type === 'anreise' ? 'Anreise' : (stop.type === 'abreise' ? 'Abreise' : stop.type),
+                                                features: [] 
+                                            });
+                                        }
+                                    }
+                                });
+                            }
+                        });
+                    }
+                } catch (e) {
+                    console.error("Fehler beim Lesen der Datei:", file.name, e);
+                }
+            }
+
+            document.getElementById('backup-search-loading').classList.add('hidden');
+            renderBackupSearchResults(allResults);
+            event.target.value = ""; 
+        }
+
+        function readFileAsync(file) {
+            return new Promise((resolve, reject) => {
+                let reader = new FileReader();
+                reader.onload = () => { resolve(reader.result); };
+                reader.onerror = reject;
+                reader.readAsText(file);
+            });
+        }
+
+        function renderBackupSearchResults(results) {
+            const container = document.getElementById('backup-search-results');
+            if (results.length === 0) {
+                container.innerHTML = '<div class="p-4 text-center text-gray-500 font-bold">Keine Ergebnisse für diesen Suchbegriff in den gewählten Backups gefunden.</div>';
+                return;
+            }
+
+            let html = '';
+            results.forEach(r => {
+                let fStr = r.features && r.features.length > 0 ? `<span class="text-red-500 text-[10px] uppercase font-bold">[${r.features.join(', ')}]</span>` : "";
+                let typeColor = r.type.toLowerCase() === 'anreise' ? 'text-orange-600' : 'text-blue-600';
+                
+                html += `
+                <div class="flex justify-between items-center p-3 border-b border-gray-200 hover:bg-indigo-50 transition">
+                    <div class="flex-grow">
+                        <div class="font-bold text-sm text-gray-800">${r.name} ${fStr}</div>
+                        <div class="text-sm font-black text-gray-900 mt-1">${r.address}</div>
+                        <div class="text-[10px] text-gray-500 mt-1">Gefunden als <span class="${typeColor} font-bold uppercase">${r.type}</span> in: <span class="italic">${r.source}</span></div>
+                    </div>
+                    <div class="flex flex-col gap-2 ml-4">
+                        <button onclick="copyToClipboard('${r.name.replace(/'/g, "\\'")}', this)" class="bg-blue-100 hover:bg-blue-200 text-blue-800 text-[10px] font-bold py-1.5 px-3 rounded shadow uppercase transition w-full text-center" title="Name kopieren">📋 Name</button>
+                        <button onclick="copyToClipboard('${r.address.replace(/'/g, "\\'")}', this)" class="bg-green-100 hover:bg-green-200 text-green-800 text-[10px] font-bold py-1.5 px-3 rounded shadow uppercase transition w-full text-center" title="Adresse kopieren">📋 Adresse</button>
+                    </div>
+                </div>`;
+            });
+            container.innerHTML = html;
+        }
+
+        window.copyToClipboard = function(text, btnElem) {
+            navigator.clipboard.writeText(text).then(() => {
+                if (btnElem) {
+                    const originalHTML = btnElem.innerHTML;
+                    btnElem.innerHTML = "✅ Kopiert!";
+                    btnElem.classList.add("bg-green-500", "text-white");
+                    btnElem.classList.remove("bg-blue-100", "bg-green-100", "text-blue-800", "text-green-800");
+                    setTimeout(() => {
+                        btnElem.innerHTML = originalHTML;
+                        btnElem.classList.remove("bg-green-500", "text-white");
+                        if (originalHTML.includes('Name')) {
+                            btnElem.classList.add("bg-blue-100", "text-blue-800");
+                        } else {
+                            btnElem.classList.add("bg-green-100", "text-green-800");
+                        }
+                    }, 2000);
+                }
+            }).catch(err => {
+                console.error('Fehler beim Kopieren: ', err);
+                alert("Fehler beim Kopieren.");
+            });
+        };
+        
+        window.onload = () => {
+            // Set App Title from Settings
+            document.getElementById('main-app-title').innerText = appSettings.title;
+
+            cleanupMemory(); 
+            initMap(); 
+            resetMemoryForm(); 
+            updateAbholadressenDatalist(); 
+            updateAllAddressDatalists();
+            const saved = JSON.parse(localStorage.getItem('activeToursData'));
+            if (saved && saved.tours && saved.tours.length > 0) {
+                tabCounter = saved.tabCounter || 0;
+                saved.tours.forEach(t => addNewTab(t));
+                switchTab(saved.tours[0].id);
+            } else { addNewTab(); }
+        };
+    </script>
+</body>
+</html>
