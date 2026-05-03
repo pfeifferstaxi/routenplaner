@@ -296,6 +296,7 @@
             </div>
         </div>
 
+        <!-- Der neue Schieberegler / View-Switcher -->
         <div class="view-switch-container">
             <div class="view-switch">
                 <button id="view-btn-planer" onclick="switchMainView('planer')" class="active">Planer</button>
@@ -305,10 +306,12 @@
     </div>
 
     <div class="flex-grow flex h-full overflow-hidden w-full no-print"> 
+        <!-- Planner Section -->
         <div id="planner-section" class="flex flex-col h-full overflow-hidden w-full md:w-1/2 border-r border-gray-300">
             <div id="tabs-header" class="bg-gray-100 border-b border-gray-300 px-4 pt-2 flex space-x-1 overflow-x-auto flex-none w-full"></div>
             <div id="tabs-content" class="flex-grow relative overflow-hidden"></div>
         </div>
+        <!-- Map Section -->
         <div id="map-container" class="hidden md:block w-full md:w-1/2 h-full relative border-l border-gray-300">
             <div id="map-display"></div>
         </div>
@@ -384,13 +387,13 @@
         </div>
     </div>
 
-    <div id="memoryModal" class="hidden fixed inset-0 bg-black/50 z-[100] p-4 sm:p-8 flex items-center justify-center no-print">
-        <div class="bg-white rounded-xl p-6 w-full max-w-6xl mx-auto flex flex-col shadow-2xl max-h-[95vh] overflow-y-auto overflow-x-hidden">
-            <div class="flex justify-between items-center mb-4">
-                <h3 class="text-xl font-bold text-gray-800">Patienten-Management</h3>
+    <div id="memoryModal" class="hidden fixed inset-0 bg-black/50 z-[100] overflow-y-auto p-4 sm:p-8 no-print">
+        <div class="bg-white rounded-xl p-6 w-full max-w-6xl mx-auto mt-6 mb-10 flex flex-col shadow-2xl">
+            <div class="mb-4">
+                <h3 class="text-xl font-bold text-gray-800 mb-2">Patienten Management</h3>
                 <div class="flex items-center gap-2">
                     <input type="text" id="memorySearch" onkeyup="filterMemory()" placeholder="🔍 Suche..." class="p-2 border rounded-lg text-sm w-64 outline-none border-blue-300">
-                    <button onclick="document.getElementById('backupSearchFile').click()" class="bg-indigo-100 hover:bg-indigo-200 text-indigo-800 font-bold py-2 px-3 rounded-lg text-sm transition border border-indigo-300 flex items-center gap-1" title="In Backups suchen">
+                    <button onclick="document.getElementById('backupSearchFile').click()" class="bg-indigo-100 hover:bg-indigo-200 text-indigo-800 font-bold py-2 px-3 rounded-lg text-[10px] transition border border-indigo-300 flex items-center gap-1" title="In Backups suchen">
                         📂 Archiv-Suche
                     </button>
                     <input type="file" id="backupSearchFile" class="hidden" accept=".json" multiple onchange="handleBackupSearch(event)">
@@ -398,11 +401,11 @@
             </div>
 
             <div class="flex gap-4 mb-6">
-                <button onclick="toggleImport('excel')" class="flex-1 bg-orange-500 hover:bg-orange-600 text-white font-bold py-3 rounded-lg shadow-md uppercase transition flex items-center justify-center gap-2">
-                    <span class="text-xl">🚚</span> Anreisen einfügen (Excel)
+                <button onclick="toggleImport('excel')" class="flex-1 bg-orange-500 hover:bg-orange-600 text-white font-bold py-2 rounded-lg shadow-md uppercase transition flex items-center justify-center text-[10px]">
+                    Anreisen einfügen
                 </button>
-                <button onclick="toggleImport('word')" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg shadow-md uppercase transition flex items-center justify-center gap-2">
-                    <span class="text-xl">🏠</span> Abreisen einfügen (Dokumente)
+                <button onclick="toggleImport('word')" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 rounded-lg shadow-md uppercase transition flex items-center justify-center text-[10px]">
+                    Abreisen einfügen
                 </button>
             </div>
             
@@ -410,7 +413,7 @@
                 <h4 class="text-emerald-800 text-sm font-black uppercase mb-3 italic">Abreise Wochen-Liste Importieren (Word / OpenOffice)</h4>
                 
                 <div class="mb-4">
-                    <button onclick="document.getElementById('word-file-input').click()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold py-3 px-4 rounded-lg shadow-md uppercase transition flex items-center justify-center gap-2">
+                    <button onclick="document.getElementById('word-file-input').click()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-bold py-3 px-4 rounded-lg shadow-md uppercase transition flex items-center justify-center gap-2">
                         <span class="text-xl">📄</span> Ganze Datei laden (.docx, .doc, .odt)
                     </button>
                     <input type="file" id="word-file-input" class="hidden" accept=".docx, .doc, .odt, .rtf" onchange="handleWordFileUpload(event)">
@@ -452,7 +455,7 @@
                 <div id="excel-import-container" class="hidden mb-4 p-4 bg-white border-2 border-blue-200 rounded-lg shadow-sm transition-all">
                     
                     <div class="mb-4">
-                        <button onclick="document.getElementById('excel-file-input').click()" class="w-full bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold py-3 px-4 rounded-lg shadow-md uppercase transition flex items-center justify-center gap-2">
+                        <button onclick="document.getElementById('excel-file-input').click()" class="w-full bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-bold py-3 px-4 rounded-lg shadow-md uppercase transition flex items-center justify-center gap-2">
                             <span class="text-xl">📊</span> Ganze Excel-Datei laden & filtern (.xlsx)
                         </button>
                         <input type="file" id="excel-file-input" class="hidden" accept=".xlsx, .xls" onchange="handleExcelFileUpload(event)">
@@ -477,9 +480,11 @@
                     <input id="mem-name" class="p-2 text-sm border rounded font-bold" placeholder="Name">
                 </div>
 
-                <div class="grid grid-cols-3 gap-2 mb-2">
+                <div class="grid grid-cols-2 gap-2 mb-2">
                     <input id="mem-addr" list="global-address-list" class="p-2 text-xs border rounded" placeholder="Heimatadresse" onchange="checkManualOrtsteil(this)">
                     <input id="mem-phone" class="p-2 text-sm border rounded" placeholder="Telefon">
+                </div>
+                <div class="grid grid-cols-1 gap-2 mb-2">
                     <div class="relative flex gap-1">
                         <input id="mem-addr-alt" list="saved-abholadressen" class="p-2 text-xs border rounded bg-white flex-grow" placeholder="Abholadresse (Klinikname + Adresse)">
                         <button onclick="quickSaveKlinik()" title="Klinik in Liste speichern" class="bg-white border rounded px-2 hover:bg-gray-100 text-sm">💾</button>
@@ -499,10 +504,10 @@
                     </div>
                 </div>
                 
-                <div class="flex items-center gap-6 mb-3 p-2 bg-white/50 rounded-lg border border-blue-100">
+                <div class="flex flex-col gap-2 mb-3 p-2 bg-white/50 rounded-lg border border-blue-100">
                     <span class="text-[10px] font-bold uppercase text-gray-500 italic">Status:</span>
-                    <label class="flex items-center gap-2 cursor-pointer"><input type="radio" name="mem-status-choice" value="anreise" id="status-anreise" checked><span class="text-sm font-bold text-orange-600 uppercase">Anreise</span></label>
-                    <label class="flex items-center gap-2 cursor-pointer"><input type="radio" name="mem-status-choice" value="abreise" id="status-abreise"><span class="text-sm font-bold text-blue-800 uppercase">Abreise</span></label>
+                    <label class="flex items-center gap-2 cursor-pointer"><input type="radio" name="mem-status-choice" value="anreise" id="status-anreise" checked><span class="text-[10px] font-bold text-orange-600 uppercase">Anreise</span></label>
+                    <label class="flex items-center gap-2 cursor-pointer"><input type="radio" name="mem-status-choice" value="abreise" id="status-abreise"><span class="text-[10px] font-bold text-blue-800 uppercase">Abreise</span></label>
                 </div>
 
                 <div class="grid grid-cols-3 gap-4 items-end">
@@ -514,30 +519,30 @@
                         <label class="text-[9px] font-bold text-orange-700 uppercase ml-1 italic">Abreise</label>
                         <input id="mem-date-out" type="date" class="p-2 text-sm border border-orange-200 rounded w-full font-bold text-orange-700">
                     </div>
-                    <button onclick="addManualToMemory()" class="bg-blue-600 text-white py-2 rounded-lg text-sm font-bold uppercase shadow-md hover:bg-blue-700 transition">Speichern</button>
+                    <button onclick="addManualToMemory()" class="bg-blue-600 text-white py-2 rounded-lg text-[10px] font-bold uppercase shadow-md hover:bg-blue-700 transition">Speichern</button>
                 </div>
             </div>
 
-            <button onclick="document.getElementById('memoryModal').classList.add('hidden')" class="w-full bg-gray-200 py-2 mb-2 rounded font-bold uppercase hover:bg-gray-300 transition text-sm border border-gray-300">Schließen</button>
+            <button onclick="document.getElementById('memoryModal').classList.add('hidden')" class="w-full bg-gray-200 py-2 mb-2 rounded font-bold uppercase hover:bg-gray-300 transition text-[10px] border border-gray-300">Schließen</button>
 
-            <div class="flex flex-col gap-6 mt-2 w-full">
+            <div class="grid grid-cols-2 gap-4 mt-2">
                 <div class="flex flex-col border rounded-lg bg-gray-50">
                     <div class="bg-blue-800 text-white p-2 flex justify-between items-center rounded-t-lg">
-                        <span class="text-xs font-bold uppercase italic flex-grow text-center pl-6">Abreiseliste</span>
+                        <span class="text-[10px] font-bold uppercase italic flex-grow text-center pl-6">Abreiseliste</span>
                         <button onclick="window.clearAbreiseList()" class="text-white hover:text-red-300 transition outline-none" title="Komplette Abreiseliste löschen">🗑</button>
                     </div>
                     <div id="memoryListAbreise" class="overflow-y-auto p-3 space-y-2 h-[450px]"></div>
                 </div>
                 <div class="flex flex-col border rounded-lg bg-gray-50">
                     <div class="bg-orange-500 text-white p-2 flex justify-between items-center rounded-t-lg">
-                        <span class="text-xs font-bold uppercase italic flex-grow text-center pl-6">Anreiseliste</span>
+                        <span class="text-[10px] font-bold uppercase italic flex-grow text-center pl-6">Anreiseliste</span>
                         <button onclick="window.clearAnreiseList()" class="text-white hover:text-red-900 transition outline-none" title="Komplette Anreiseliste löschen">🗑</button>
                     </div>
                     <div id="memoryListAnreise" class="overflow-y-auto p-3 space-y-2 h-[450px]"></div>
                 </div>
             </div>
             
-            <button onclick="document.getElementById('memoryModal').classList.add('hidden')" class="mt-6 w-full bg-gray-200 py-3 rounded font-bold uppercase hover:bg-gray-300 transition">Schließen</button>
+            <button onclick="document.getElementById('memoryModal').classList.add('hidden')" class="mt-6 w-full bg-gray-200 py-2 rounded font-bold uppercase hover:bg-gray-300 transition text-[10px]">Schließen</button>
         </div>
     </div>
 
@@ -1784,7 +1789,6 @@
                 setTimeout(() => { document.getElementById('word-import-abreise-mass').value = ""; }, 1500);
             }
         }
-
         async function parseMassAbreiseText(text) {
             const cleanRawText = text.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, ' ');
             const lines = cleanRawText.split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 2);
