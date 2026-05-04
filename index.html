@@ -296,7 +296,6 @@
             </div>
         </div>
 
-        <!-- Der neue Schieberegler / View-Switcher -->
         <div class="view-switch-container">
             <div class="view-switch">
                 <button id="view-btn-planer" onclick="switchMainView('planer')" class="active">Planer</button>
@@ -306,12 +305,10 @@
     </div>
 
     <div class="flex-grow flex h-full overflow-hidden w-full no-print"> 
-        <!-- Planner Section -->
         <div id="planner-section" class="flex flex-col h-full overflow-hidden w-full md:w-1/2 border-r border-gray-300">
             <div id="tabs-header" class="bg-gray-100 border-b border-gray-300 px-4 pt-2 flex space-x-1 overflow-x-auto flex-none w-full"></div>
             <div id="tabs-content" class="flex-grow relative overflow-hidden"></div>
         </div>
-        <!-- Map Section -->
         <div id="map-container" class="hidden md:block w-full md:w-1/2 h-full relative border-l border-gray-300">
             <div id="map-display"></div>
         </div>
@@ -525,7 +522,7 @@
 
             <button onclick="document.getElementById('memoryModal').classList.add('hidden')" class="w-full bg-gray-200 py-2 mb-2 rounded font-bold uppercase hover:bg-gray-300 transition text-[10px] border border-gray-300">Schließen</button>
 
-            <div class="grid grid-cols-2 gap-4 mt-2">
+            <div class="grid grid-cols-1 gap-4 mt-2">
                 <div class="flex flex-col border rounded-lg bg-gray-50">
                     <div class="bg-blue-800 text-white p-2 flex justify-between items-center rounded-t-lg">
                         <span class="text-[10px] font-bold uppercase italic flex-grow text-center pl-6">Abreiseliste</span>
@@ -1384,8 +1381,8 @@
             
             const title = savedData ? savedData.title : appSettings.defaultTabName;
             
-            // --- HIER WURDE DER SHARE-BUTTON EINGEBAUT ---
-            cont.innerHTML = `<div class="p-6 h-full flex flex-col"><h2 contenteditable="true" onblur="handleTitleChange(${id}, this)" class="tour-title text-2xl font-black italic text-gray-700 outline-none uppercase mb-4">${title}</h2><div class="flex flex-row items-center gap-4 bg-[#f8fafc] border border-blue-100 p-3 rounded-xl mb-4 shadow-sm"><div class="flex flex-col flex-1"><label class="text-[10px] font-bold uppercase text-blue-800 ml-1 mb-1">Tour-Datum</label><input type="date" class="tourDate p-2 border border-gray-200 rounded-md text-sm font-bold shadow-sm w-full outline-none focus:border-blue-500" onchange="saveAll()"></div><div class="flex flex-col flex-1"><label class="text-[10px] font-bold uppercase text-blue-800 ml-1 mb-1">Abfahrt Klinik</label><select class="startTime w-full p-2 border border-gray-200 rounded-md text-sm font-bold shadow-sm outline-none focus:border-blue-500" onchange="saveAll()"></select></div></div><div class="metrics-bar bg-white border border-gray-200 rounded-lg p-3 mb-4 flex justify-between items-center text-xs font-black shadow-sm no-print hidden"><div class="flex flex-col text-blue-800"><span class="text-[9px] uppercase">🛣 Gesamt</span><span class="val-gesamt text-sm">0.0 km</span></div><div class="flex flex-col text-red-600" title="Strecke ohne Patient (Leerfahrt)"><span class="text-[9px] uppercase">⚠️ Leer-KM</span><span class="val-leer text-sm">0.0 km</span></div></div><div class="stopsContainer space-y-2"></div><div class="mt-6 flex flex-col gap-2 border-t pt-4 no-print"><div class="comparison-container flex flex-col gap-1 mb-2 bg-white p-2 border rounded-lg shadow-inner"></div><button class="addStopButton w-full py-3 bg-slate-300 text-slate-900 text-sm font-black border-2 border-slate-400 rounded hover:bg-slate-400 uppercase shadow-sm transition">+ Stopp hinzufügen</button><div class="flex items-center justify-between bg-gray-50 p-3 rounded-lg border border-gray-200 mt-2"><span class="text-[10px] font-black uppercase text-gray-500 italic">Bevorzugter Modus:</span><div class="route-selector-container"><div class="route-opt ${(savedData && savedData.routeMode === 'fastest' || !savedData) ? 'active' : ''}" data-mode="fastest" onclick="setRouteMode(this)">Schnellste</div><div class="route-opt ${(savedData && savedData.routeMode === 'eco') ? 'active' : ''}" data-mode="eco" onclick="setRouteMode(this)">Sparsamste</div><div class="route-opt ${(savedData && savedData.routeMode === 'shortest') ? 'active' : ''}" data-mode="shortest" onclick="setRouteMode(this)">Kürzeste</div></div></div><button class="optimizeButton w-full py-4 bg-blue-600 text-white font-black rounded-lg shadow-xl hover:bg-blue-700 uppercase transition-all mt-2">📍 Route berechnen</button><button onclick="shareCurrentRoute()" class="w-full py-3 bg-green-600 text-white font-black rounded-lg shadow-xl hover:bg-green-700 uppercase transition-all mt-2">🔗 Route Teilen (Google Maps)</button><button onclick="clearFullPlaner()" class="w-full py-2 bg-red-200 text-red-800 text-[10px] font-bold rounded hover:bg-red-300 uppercase transition border border-red-400 mt-2 mb-8">🗑 Planer löschen</button></div></div>`;
+            // --- HIER WURDE DER SHARE-BUTTON SOWIE DIE PREISANZEIGE EINGEBAUT ---
+            cont.innerHTML = `<div class="p-6 h-full flex flex-col"><h2 contenteditable="true" onblur="handleTitleChange(${id}, this)" class="tour-title text-2xl font-black italic text-gray-700 outline-none uppercase mb-4">${title}</h2><div class="flex flex-row items-center gap-4 bg-[#f8fafc] border border-blue-100 p-3 rounded-xl mb-4 shadow-sm"><div class="flex flex-col flex-1"><label class="text-[10px] font-bold uppercase text-blue-800 ml-1 mb-1">Tour-Datum</label><input type="date" class="tourDate p-2 border border-gray-200 rounded-md text-sm font-bold shadow-sm w-full outline-none focus:border-blue-500" onchange="saveAll()"></div><div class="flex flex-col flex-1"><label class="text-[10px] font-bold uppercase text-blue-800 ml-1 mb-1">Abfahrt Klinik</label><select class="startTime w-full p-2 border border-gray-200 rounded-md text-sm font-bold shadow-sm outline-none focus:border-blue-500" onchange="saveAll()"></select></div></div><div class="metrics-bar bg-white border border-gray-200 rounded-lg p-3 mb-4 flex justify-between items-center text-xs font-black shadow-sm no-print hidden"><div class="flex flex-col text-blue-800"><span class="text-[9px] uppercase">🛣 Gesamt</span><span class="val-gesamt text-sm">0.0 km</span></div><div class="flex items-center gap-4"><div class="flex flex-col text-right hidden val-preis-container border-r border-gray-200 pr-4"><span class="text-[9px] font-bold text-green-600">Besetzt: <span class="val-besetzt-preis">0.00 €</span></span><span class="text-[9px] font-bold text-red-500">Leer: <span class="val-leer-preis">0.00 €</span></span><span class="text-[11px] font-black mt-0.5 val-diff-preis">0.00 €</span></div><div class="flex flex-col text-red-600" title="Strecke ohne Patient (Leerfahrt)"><span class="text-[9px] uppercase">⚠️ Leer-KM</span><span class="val-leer text-sm">0.0 km</span></div></div></div><div class="stopsContainer space-y-2"></div><div class="mt-6 flex flex-col gap-2 border-t pt-4 no-print"><div class="comparison-container flex flex-col gap-1 mb-2 bg-white p-2 border rounded-lg shadow-inner"></div><button class="addStopButton w-full py-3 bg-slate-300 text-slate-900 text-sm font-black border-2 border-slate-400 rounded hover:bg-slate-400 uppercase shadow-sm transition">+ Stopp hinzufügen</button><div class="flex items-center justify-between bg-gray-50 p-3 rounded-lg border border-gray-200 mt-2"><span class="text-[10px] font-black uppercase text-gray-500 italic">Bevorzugter Modus:</span><div class="route-selector-container"><div class="route-opt ${(savedData && savedData.routeMode === 'fastest' || !savedData) ? 'active' : ''}" data-mode="fastest" onclick="setRouteMode(this)">Schnellste</div><div class="route-opt ${(savedData && savedData.routeMode === 'eco') ? 'active' : ''}" data-mode="eco" onclick="setRouteMode(this)">Sparsamste</div><div class="route-opt ${(savedData && savedData.routeMode === 'shortest') ? 'active' : ''}" data-mode="shortest" onclick="setRouteMode(this)">Kürzeste</div></div></div><button class="optimizeButton w-full py-4 bg-blue-600 text-white font-black rounded-lg shadow-xl hover:bg-blue-700 uppercase transition-all mt-2">📍 Route berechnen</button><button onclick="shareCurrentRoute()" class="w-full py-3 bg-green-600 text-white font-black rounded-lg shadow-xl hover:bg-green-700 uppercase transition-all mt-2">🔗 Route Teilen (Google Maps)</button><button onclick="clearFullPlaner()" class="w-full py-2 bg-red-200 text-red-800 text-[10px] font-bold rounded hover:bg-red-300 uppercase transition border border-red-400 mt-2 mb-8">🗑 Planer löschen</button></div></div>`;
             document.getElementById('tabs-content').appendChild(cont);
             
             const btn = document.createElement('button');
@@ -1602,6 +1599,31 @@
                         mBar.classList.remove('hidden');
                         mBar.querySelector('.val-gesamt').innerText = totalDist.toFixed(1) + ' km';
                         mBar.querySelector('.val-leer').innerText = emptyKm.toFixed(1) + ' km';
+                        
+                        // --- NEU: PREIS BERECHNUNG ---
+                        const preisContainer = mBar.querySelector('.val-preis-container');
+                        if (preisContainer) {
+                            preisContainer.classList.remove('hidden');
+                            const besetztKm = totalDist - emptyKm;
+                            const besetztPreis = besetztKm * 1.30;
+                            const leerPreis = emptyKm * 1.30;
+                            const diffPreis = besetztPreis - leerPreis;
+                            
+                            mBar.querySelector('.val-besetzt-preis').innerText = besetztPreis.toFixed(2) + ' €';
+                            mBar.querySelector('.val-leer-preis').innerText = leerPreis.toFixed(2) + ' €';
+                            
+                            const diffElem = mBar.querySelector('.val-diff-preis');
+                            if (diffPreis < 0) {
+                                diffElem.innerText = 'Verlust: ' + diffPreis.toFixed(2) + ' €';
+                                diffElem.classList.remove('text-green-600');
+                                diffElem.classList.add('text-red-600');
+                            } else {
+                                diffElem.innerText = 'Gewinn: +' + diffPreis.toFixed(2) + ' €';
+                                diffElem.classList.remove('text-red-600');
+                                diffElem.classList.add('text-green-600');
+                            }
+                        }
+                        
                     } else {
                         mBar.classList.add('hidden');
                     }
