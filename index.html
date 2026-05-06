@@ -1708,96 +1708,58 @@
         }
 
         async function exportData() {
-            const data = {
-                settings: JSON.parse(localStorage.getItem('appSettings')) || null, // <-- NEU: Einstellungen sichern
-                memory: JSON.parse(localStorage.getItem('patientMemory') || '[]'),
-                tours: JSON.parse(localStorage.getItem('activeToursData') || '{}'),
-                abholadressen: JSON.parse(localStorage.getItem('savedAbholadressen') || '[]'),
-                globalHistory: JSON.parse(localStorage.getItem('globalAddressHistory') || '[]'),
-                waypointHistory: JSON.parse(localStorage.getItem('waypointAddressHistory') || '[]')
-            };
-            
-            const now = new Date();
-            const timeStr = String(now.getHours()).padStart(2, '0') + "-" + String(now.getMinutes()).padStart(2, '0');
-            const fileName = `backup-teufel-${getTodayISO()}_${timeStr}.json`;
-            const jsonStr = JSON.stringify(data, null, 2);
-            
-            try {
-                if (window.showSaveFilePicker) {
-                    const fileHandle = await window.showSaveFilePicker({
-                        suggestedName: fileName,
-                        types: [{
-                            description: 'JSON Backup Datei',
-                            accept: {'application/json': ['.json']},
-                        }],
-                    });
-                    const writable = await fileHandle.createWritable();
-                    await writable.write(jsonStr);
-                    await writable.close();
-                    return; 
-                }
-            } catch (err) {
-                if (err.name === 'AbortError') return;
-                console.error("FilePicker fehlgeschlagen, nutze Fallback:", err);
-            }
+    const data = {
+        settings: JSON.parse(localStorage.getItem('appSettings')) || null,
+        memory: JSON.parse(localStorage.getItem('patientMemory') || '[]'),
+        tours: JSON.parse(localStorage.getItem('activeToursData') || '{}'),
+        abholadressen: JSON.parse(localStorage.getItem('savedAbholadressen') || '[]'),
+        globalHistory: JSON.parse(localStorage.getItem('globalAddressHistory') || '[]'),
+        waypointHistory: JSON.parse(localStorage.getItem('waypointAddressHistory') || '[]')
+    };
+    
+    const jsonStr = JSON.stringify(data, null, 2);
+    const blob = new Blob([jsonStr], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    
+    const now = new Date();
+    const fileName = `backup-planer-${getTodayISO()}_${String(now.getHours()).padStart(2, '0')}-${String(now.getMinutes()).padStart(2, '0')}.json`;
+    
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = fileName;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+}
 
-            try {
-                const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(jsonStr);
-                const a = document.createElement('a');
-                a.style.display = 'none';
-                a.href = dataStr;
-                a.download = fileName;
-                document.body.appendChild(a);
-                if (document.createEvent) {
-                    const e = document.createEvent('MouseEvents');
-                    e.initEvent('click', true, true);
-                    a.dispatchEvent(e);
-                } else {
-                    a.click();
-                }
-                document.body.removeChild(a);
-            } catch (err) {
-                const blob = new Blob([jsonStr], { type: 'application/json' });
-                if (window.navigator && window.navigator.msSaveOrOpenBlob) {
-                    window.navigator.msSaveOrOpenBlob(blob, fileName);
-                } else {
-                    const url = URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.style.display = 'none';
-                    a.href = url;
-                    a.download = fileName;
-                    document.body.appendChild(a);
-                    a.click();
-                    setTimeout(() => {
-                        document.body.removeChild(a);
-                        window.URL.revokeObjectURL(url);
-                    }, 100);
-                }
-            }
-        }
+// --- BACKUP IMPORT ---
+function importData(event) {
+    const file = event.target.files[0]; 
+    if (!file) return;
 
-        function importData(event) {
-            const file = event.target.files[0]; if (!file) return;
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                try {
-                    const data = JSON.parse(e.target.result);
-                    if (data.settings) localStorage.setItem('appSettings', JSON.stringify(data.settings)); // <-- NEU: Einstellungen laden
-                    if (data.memory) localStorage.setItem('patientMemory', JSON.stringify(data.memory));
-                    if (data.tours) localStorage.setItem('activeToursData', JSON.stringify(data.tours));
-                    if (data.abholadressen) localStorage.setItem('savedAbholadressen', JSON.stringify(data.abholadressen));
-                    if (data.globalHistory) localStorage.setItem('globalAddressHistory', JSON.stringify(data.globalHistory));
-                    if (data.waypointHistory) localStorage.setItem('waypointAddressHistory', JSON.stringify(data.waypointHistory));
-                    
-                    document.getElementById('importFile').value = ''; 
-                    location.reload();
-                } catch(err) {
-                    alert("Fehler beim Importieren. Ist die Datei ein gültiges Backup?");
-                    console.error(err);
-                }
-            };
-            reader.readAsText(file);
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        try {
+            const data = JSON.parse(e.target.result);
+            
+            // Daten in LocalStorage schreiben
+            if (data.settings) localStorage.setItem('appSettings', JSON.stringify(data.settings));
+            if (data.memory) localStorage.setItem('patientMemory', JSON.stringify(data.memory));
+            if (data.tours) localStorage.setItem('activeToursData', JSON.stringify(data.tours));
+            if (data.abholadressen) localStorage.setItem('savedAbholadressen', JSON.stringify(data.abholadressen));
+            if (data.globalHistory) localStorage.setItem('globalAddressHistory', JSON.stringify(data.globalHistory));
+            if (data.waypointHistory) localStorage.setItem('waypointAddressHistory', JSON.stringify(data.waypointHistory));
+            
+            alert("Import erfolgreich! Die Seite wird nun neu geladen.");
+            location.reload(); // Seite neu laden, um Daten anzuzeigen
+        } catch(err) {
+            alert("Fehler: Die Datei ist kein gültiges Backup-Format.");
+            console.error(err);
         }
+    };
+    reader.readAsText(file);
+}
         // --- MASSEN-IMPORT LOGIK ---
         
         let tempMassAbreisen = []; 
@@ -2503,4 +2465,3 @@
     </script>
 </body>
 </html>
-
