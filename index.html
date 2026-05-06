@@ -1709,17 +1709,20 @@
 
         async function exportData() {
             const data = {
+                settings: JSON.parse(localStorage.getItem('appSettings')) || null, // <-- NEU: Einstellungen sichern
                 memory: JSON.parse(localStorage.getItem('patientMemory') || '[]'),
                 tours: JSON.parse(localStorage.getItem('activeToursData') || '{}'),
                 abholadressen: JSON.parse(localStorage.getItem('savedAbholadressen') || '[]'),
                 globalHistory: JSON.parse(localStorage.getItem('globalAddressHistory') || '[]'),
                 waypointHistory: JSON.parse(localStorage.getItem('waypointAddressHistory') || '[]')
             };
-            const fileName = `Planer_Backup_${getTodayISO()}.json`;
+            
+            const now = new Date();
+            const timeStr = String(now.getHours()).padStart(2, '0') + "-" + String(now.getMinutes()).padStart(2, '0');
+            const fileName = `backup-teufel-${getTodayISO()}_${timeStr}.json`;
             const jsonStr = JSON.stringify(data, null, 2);
             
             try {
-                // Moderne File System Access API - Erzwingt einen nativen "Speichern unter" Dialog!
                 if (window.showSaveFilePicker) {
                     const fileHandle = await window.showSaveFilePicker({
                         suggestedName: fileName,
@@ -1731,15 +1734,13 @@
                     const writable = await fileHandle.createWritable();
                     await writable.write(jsonStr);
                     await writable.close();
-                    return; // Erfolgreich gespeichert
+                    return; 
                 }
             } catch (err) {
-                // Wenn der User im Dialog auf "Abbrechen" klickt (AbortError), tun wir nichts.
                 if (err.name === 'AbortError') return;
                 console.error("FilePicker fehlgeschlagen, nutze Fallback:", err);
             }
 
-            // Fallback für ältere Browser oder Wrapper, die showSaveFilePicker evtl. nicht unterstützen
             try {
                 const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(jsonStr);
                 const a = document.createElement('a');
@@ -1781,6 +1782,7 @@
             reader.onload = (e) => {
                 try {
                     const data = JSON.parse(e.target.result);
+                    if (data.settings) localStorage.setItem('appSettings', JSON.stringify(data.settings)); // <-- NEU: Einstellungen laden
                     if (data.memory) localStorage.setItem('patientMemory', JSON.stringify(data.memory));
                     if (data.tours) localStorage.setItem('activeToursData', JSON.stringify(data.tours));
                     if (data.abholadressen) localStorage.setItem('savedAbholadressen', JSON.stringify(data.abholadressen));
@@ -2501,3 +2503,4 @@
     </script>
 </body>
 </html>
+
