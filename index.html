@@ -1706,8 +1706,8 @@
             });
             window.print();
         }
-
-        async function exportData() {
+// --- VERBESSERTES VOLL-SICHERN (Mit Dropbox-Support am Handy) ---
+async function exportData() {
     const data = {
         settings: JSON.parse(localStorage.getItem('appSettings')) || null,
         memory: JSON.parse(localStorage.getItem('patientMemory') || '[]'),
@@ -1719,53 +1719,72 @@
     
     const jsonStr = JSON.stringify(data, null, 2);
     const now = new Date();
-    const fileName = `backup-planer-${getTodayISO()}_${String(now.getHours()).padStart(2, '0')}-${String(now.getMinutes()).padStart(2, '0')}.json`;
+    const timeStr = String(now.getHours()).padStart(2, '0') + "-" + String(now.getMinutes()).padStart(2, '0');
+    const fileName = `backup-teufel-${getTodayISO()}_${timeStr}.json`;
 
-    // 1. Erstelle eine Datei aus dem JSON-String
-    const file = new File([jsonStr], fileName, { type: 'application/json' });
+    const blob = new Blob([jsonStr], { type: 'application/json' });
 
-    // 2. Prüfen, ob das Gerät die "Teilen"-Funktion unterstützt (Smartphone)
-    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+    // A) MODERNES SHARE-MENÜ (Für Smartphones / Dropbox)
+    if (navigator.canShare && navigator.canShare({ files: [new File([blob], fileName, {type: 'application/json'})] })) {
         try {
+            const file = new File([blob], fileName, { type: 'application/json' });
             await navigator.share({
                 files: [file],
                 title: 'Klinik-Planer Backup',
                 text: 'Sicherung der Tourendaten'
             });
+            return; // Beenden, wenn erfolgreich geteilt wurde
         } catch (err) {
-            console.log("Teilen abgebrochen oder fehlgeschlagen", err);
+            if (err.name !== 'AbortError') console.error("Share fehlgeschlagen:", err);
         }
-    } else {
-        // 3. Fallback für PC (normaler Download)
-        const url = URL.createObjectURL(file);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = fileName;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
     }
+
+    // B) PC-METHODE (showSaveFilePicker für Chrome/Edge)
+    if (window.showSaveFilePicker) {
+        try {
+            const fileHandle = await window.showSaveFilePicker({
+                suggestedName: fileName,
+                types: [{ description: 'JSON Backup', accept: {'application/json': ['.json']} }],
+            });
+            const writable = await fileHandle.createWritable();
+            await writable.write(blob);
+            await writable.close();
+            return;
+        } catch (err) {
+            if (err.name !== 'AbortError') console.error("FilePicker Fehler:", err);
+        }
+    }
+
+    // C) FALLBACK (Normaler Download für alte Browser)
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = fileName;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
 }
 
-// --- BACKUP IMPORT ---
+// --- VERBESSERTER IMPORT (Robuster gegen Dropbox-Fehler) ---
 function importData(event) {
-    const file = event.target.files[0]; 
+    const file = event.target.files[0];
     if (!file) return;
 
     const reader = new FileReader();
     reader.onload = (e) => {
         try {
-            // .trim() entfernt unsichtbare Leerzeichen oder Zeilenumbrüche am Anfang/Ende
-            const rawData = e.target.result.trim();
-            const data = JSON.parse(rawData);
+            let content = e.target.result.trim();
             
-            // Validierung: Prüfen, ob es überhaupt unsere Struktur ist
-            if (!data.tours && !data.memory) {
-                throw new Error("Keine kompatiblen Daten gefunden.");
+            // Falls Dropbox "Data-URL" Müll reingeschrieben hat, putzen:
+            if (content.startsWith('data:')) {
+                content = decodeURIComponent(content.split(',')[1]);
+                if (content.includes(';base64,')) content = atob(content.split('base64,')[1]);
             }
 
-            // Daten in LocalStorage schreiben
+            const data = JSON.parse(content);
+            
+            // Daten speichern
             if (data.settings) localStorage.setItem('appSettings', JSON.stringify(data.settings));
             if (data.memory) localStorage.setItem('patientMemory', JSON.stringify(data.memory));
             if (data.tours) localStorage.setItem('activeToursData', JSON.stringify(data.tours));
@@ -1773,12 +1792,11 @@ function importData(event) {
             if (data.globalHistory) localStorage.setItem('globalAddressHistory', JSON.stringify(data.globalHistory));
             if (data.waypointHistory) localStorage.setItem('waypointAddressHistory', JSON.stringify(data.waypointHistory));
             
-            alert("✅ Import erfolgreich! Die Seite wird nun neu geladen.");
+            alert("✅ Backup erfolgreich geladen! Die Seite wird nun aktualisiert.");
             location.reload();
-        } catch(err) {
-            // Präzisere Fehlermeldung in der Konsole für dich
-            console.error("Import-Details:", err);
-            alert("❌ Fehler: Die Datei ist entweder beschädigt, kein JSON-Backup oder eine Excel-Datei.\n\nDetails: " + err.message);
+        } catch (err) {
+            console.error("Import Fehler:", err);
+            alert("❌ Fehler: Diese Datei ist kein gültiges Backup oder beschädigt.");
         }
     };
     reader.readAsText(file);
