@@ -1718,19 +1718,34 @@
     };
     
     const jsonStr = JSON.stringify(data, null, 2);
-    const blob = new Blob([jsonStr], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    
     const now = new Date();
     const fileName = `backup-planer-${getTodayISO()}_${String(now.getHours()).padStart(2, '0')}-${String(now.getMinutes()).padStart(2, '0')}.json`;
-    
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = fileName;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+
+    // 1. Erstelle eine Datei aus dem JSON-String
+    const file = new File([jsonStr], fileName, { type: 'application/json' });
+
+    // 2. Prüfen, ob das Gerät die "Teilen"-Funktion unterstützt (Smartphone)
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        try {
+            await navigator.share({
+                files: [file],
+                title: 'Klinik-Planer Backup',
+                text: 'Sicherung der Tourendaten'
+            });
+        } catch (err) {
+            console.log("Teilen abgebrochen oder fehlgeschlagen", err);
+        }
+    } else {
+        // 3. Fallback für PC (normaler Download)
+        const url = URL.createObjectURL(file);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = fileName;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    }
 }
 
 // --- BACKUP IMPORT ---
@@ -2465,3 +2480,4 @@ function importData(event) {
     </script>
 </body>
 </html>
+
