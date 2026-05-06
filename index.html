@@ -1718,34 +1718,19 @@
     };
     
     const jsonStr = JSON.stringify(data, null, 2);
+    const blob = new Blob([jsonStr], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    
     const now = new Date();
     const fileName = `backup-planer-${getTodayISO()}_${String(now.getHours()).padStart(2, '0')}-${String(now.getMinutes()).padStart(2, '0')}.json`;
-
-    // 1. Erstelle eine Datei aus dem JSON-String
-    const file = new File([jsonStr], fileName, { type: 'application/json' });
-
-    // 2. Prüfen, ob das Gerät die "Teilen"-Funktion unterstützt (Smartphone)
-    if (navigator.canShare && navigator.canShare({ files: [file] })) {
-        try {
-            await navigator.share({
-                files: [file],
-                title: 'Klinik-Planer Backup',
-                text: 'Sicherung der Tourendaten'
-            });
-        } catch (err) {
-            console.log("Teilen abgebrochen oder fehlgeschlagen", err);
-        }
-    } else {
-        // 3. Fallback für PC (normaler Download)
-        const url = URL.createObjectURL(file);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = fileName;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-    }
+    
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = fileName;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
 }
 
 // --- BACKUP IMPORT ---
@@ -1756,8 +1741,15 @@ function importData(event) {
     const reader = new FileReader();
     reader.onload = (e) => {
         try {
-            const data = JSON.parse(e.target.result);
+            // .trim() entfernt unsichtbare Leerzeichen oder Zeilenumbrüche am Anfang/Ende
+            const rawData = e.target.result.trim();
+            const data = JSON.parse(rawData);
             
+            // Validierung: Prüfen, ob es überhaupt unsere Struktur ist
+            if (!data.tours && !data.memory) {
+                throw new Error("Keine kompatiblen Daten gefunden.");
+            }
+
             // Daten in LocalStorage schreiben
             if (data.settings) localStorage.setItem('appSettings', JSON.stringify(data.settings));
             if (data.memory) localStorage.setItem('patientMemory', JSON.stringify(data.memory));
@@ -1766,15 +1758,17 @@ function importData(event) {
             if (data.globalHistory) localStorage.setItem('globalAddressHistory', JSON.stringify(data.globalHistory));
             if (data.waypointHistory) localStorage.setItem('waypointAddressHistory', JSON.stringify(data.waypointHistory));
             
-            alert("Import erfolgreich! Die Seite wird nun neu geladen.");
-            location.reload(); // Seite neu laden, um Daten anzuzeigen
+            alert("✅ Import erfolgreich! Die Seite wird nun neu geladen.");
+            location.reload();
         } catch(err) {
-            alert("Fehler: Die Datei ist kein gültiges Backup-Format.");
-            console.error(err);
+            // Präzisere Fehlermeldung in der Konsole für dich
+            console.error("Import-Details:", err);
+            alert("❌ Fehler: Die Datei ist entweder beschädigt, kein JSON-Backup oder eine Excel-Datei.\n\nDetails: " + err.message);
         }
     };
     reader.readAsText(file);
 }
+
         // --- MASSEN-IMPORT LOGIK ---
         
         let tempMassAbreisen = []; 
@@ -2480,4 +2474,3 @@ function importData(event) {
     </script>
 </body>
 </html>
-
