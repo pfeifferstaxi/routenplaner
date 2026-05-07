@@ -941,37 +941,37 @@
         }
 
                 function saveAll() {
-            const tours = instanceData.map(inst => {
-                const titleElem = document.querySelector(`#tab-content-${inst.id} .tour-title`);
-                // WICHTIG: textContent statt innerText nutzen, da innerText bei unsichtbaren Tabs nichts zurückgibt!
-                const titleText = titleElem ? titleElem.textContent.trim() : null;
-                
-                // Fallback: Den Namen aus dem Tab-Reiter holen, falls die Überschrift leer ist
-                const btnTitleElem = document.querySelector(`#tab-btn-${inst.id} span`);
-                const btnText = btnTitleElem ? btnTitleElem.textContent.trim() : appSettings.defaultTabName;
+    const tours = instanceData.map(inst => {
+        const titleElem = document.querySelector(`#tab-content-${inst.id} .tour-title`);
+        // .textContent statt .innerText nutzen!
+        const titleText = titleElem ? titleElem.textContent.trim() : null;
+        
+        const btnTitleElem = document.querySelector(`#tab-btn-${inst.id} span`);
+        const btnText = btnTitleElem ? btnTitleElem.textContent.trim() : (appSettings.defaultTabName || "Tour");
 
-                const activeRouteOpt = document.querySelector(`#tab-content-${inst.id} .route-opt.active`);
-                
-                return { 
-                    id: inst.id, 
-                    title: titleText || btnText, 
-                    tourStops: inst.tourStops, 
-                    legsData: inst.legsData, 
-                    tourDate: inst.tourDate, 
-                    startT: inst.startT, 
-                    totalDist: inst.totalDistanceKm, 
-                    totalPureMin: inst.pureT, 
-                    totalWithBufferMin: inst.totalT,
-                    routeMode: activeRouteOpt ? activeRouteOpt.dataset.mode : 'fastest',
-                    comparisonData: inst.comparisonData || null
-                };
-            });
-            localStorage.setItem('activeToursData', JSON.stringify({ 
-                tabCounter, 
-                tours, 
-                lastSavedDate: getTodayISO() 
-            }));
-        }
+        const activeRouteOpt = document.querySelector(`#tab-content-${inst.id} .route-opt.active`);
+        
+        return { 
+            id: inst.id, 
+            title: titleText || btnText, 
+            tourStops: inst.tourStops, 
+            legsData: inst.legsData, 
+            tourDate: inst.tourDate, 
+            startT: inst.startT, 
+            totalDist: inst.totalDistanceKm, 
+            totalPureMin: inst.pureT, 
+            totalWithBufferMin: inst.totalT,
+            routeMode: activeRouteOpt ? activeRouteOpt.dataset.mode : 'fastest',
+            comparisonData: inst.comparisonData || null
+        };
+    });
+    localStorage.setItem('activeToursData', JSON.stringify({ 
+        tabCounter, 
+        tours, 
+        lastSavedDate: new Date().toISOString().split('T')[0]
+    }));
+}
+
 
 
         function cleanupMemory() {
@@ -1717,52 +1717,58 @@
         }
 // --- VERBESSERTES VOLL-SICHERN (Mit Dropbox-Support am Handy) ---
         async function exportData() {
-            // WICHTIG: Erzwingt eine aktuelle Speicherung aller Tabs VOR dem Export!
+    try {
+        // 1. Erst alles aktuell speichern
+        if (typeof saveAll === "function") {
             saveAll();
-
-            const data = {
-                settings: JSON.parse(localStorage.getItem('appSettings')) || null,
-                memory: JSON.parse(localStorage.getItem('patientMemory') || '[]'),
-                tours: JSON.parse(localStorage.getItem('activeToursData') || '{}'),
-                abholadressen: JSON.parse(localStorage.getItem('savedAbholadressen') || '[]'),
-                globalHistory: JSON.parse(localStorage.getItem('globalAddressHistory') || '[]'),
-                waypointHistory: JSON.parse(localStorage.getItem('waypointAddressHistory') || '[]')
-            };
-            
-            const jsonStr = JSON.stringify(data, null, 2);
-            const now = new Date();
-            const fileName = `backup-planer-${getTodayISO()}_${String(now.getHours()).padStart(2, '0')}-${String(now.getMinutes()).padStart(2, '0')}.json`;
-            
-            // Datei-Objekt für die mobile Share-API erstellen
-            const file = new File([jsonStr], fileName, { type: "application/json" });
-
-            // Prüfen, ob das Smartphone das native Teilen-Menü für Dateien unterstützt
-            if (navigator.canShare && navigator.canShare({ files: [file] })) {
-                try {
-                    await navigator.share({
-                        files: [file],
-                        title: 'Planer Backup',
-                        text: 'Aktuelles Backup aller Routen und Patienten.'
-                    });
-                    return; // Erfolgreich geteilt (z.B. an Dropbox gesendet), Funktion beenden
-                } catch (err) {
-                    console.log('Teilen abgebrochen oder fehlgeschlagen:', err);
-                    // Kein Fehler werfen, sondern zum Fallback (normaler Download) weitergehen
-                }
-            }
-            
-            // --- FALLBACK (Für PC oder wenn Teilen abgebrochen wurde) ---
-            const blob = new Blob([jsonStr], { type: 'application/json' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = fileName;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
         }
 
+        // 2. Daten sammeln
+        const data = {
+            settings: JSON.parse(localStorage.getItem('appSettings')) || null,
+            memory: JSON.parse(localStorage.getItem('patientMemory') || '[]'),
+            tours: JSON.parse(localStorage.getItem('activeToursData') || '{}'),
+            abholadressen: JSON.parse(localStorage.getItem('savedAbholadressen') || '[]'),
+            globalHistory: JSON.parse(localStorage.getItem('globalAddressHistory') || '[]'),
+            waypointHistory: JSON.parse(localStorage.getItem('waypointAddressHistory') || '[]')
+        };
+        
+        const jsonStr = JSON.stringify(data, null, 2);
+        const now = new Date();
+        const dateStr = now.toISOString().split('T')[0];
+        const timeStr = String(now.getHours()).padStart(2, '0') + "-" + String(now.getMinutes()).padStart(2, '0');
+        const fileName = `backup-planer-${dateStr}_${timeStr}.json`;
+        
+        // 3. Prüfung: Sind wir am Smartphone? (Web Share API)
+        if (navigator.share && navigator.canShare) {
+            const file = new File([jsonStr], fileName, { type: "application/json" });
+            
+            if (navigator.canShare({ files: [file] })) {
+                await navigator.share({
+                    files: [file],
+                    title: 'Planer Backup',
+                    text: 'Komplette Sicherung aller Routen'
+                });
+                return; // Funktion hier beenden, wenn Teilen erfolgreich
+            }
+        }
+        
+        // 4. Fallback für PC (Normaler Download)
+        const blob = new Blob([jsonStr], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = fileName;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+
+    } catch (err) {
+        console.error('Export Fehler:', err);
+        alert("Fehler beim Sichern: " + err.message);
+    }
+}
 
 // --- BACKUP IMPORT ---
 function importData(event) {
