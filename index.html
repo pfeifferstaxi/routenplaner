@@ -17,7 +17,6 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css" />
     
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/mammoth@1.6.0/mammoth.browser.min.js"></script>
     
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
@@ -407,27 +406,11 @@
             </div>
             
             <div id="word-import-container" class="hidden bg-emerald-50 p-5 rounded-xl mb-6 border border-emerald-200 shrink-0 transition-all">
-                <h4 class="text-emerald-800 text-sm font-black uppercase mb-3 italic">Abreise Wochen-Liste Importieren (Word / OpenOffice)</h4>
+                <h4 class="text-emerald-800 text-sm font-black uppercase mb-3 italic">Abreise Wochen-Liste Importieren</h4>
                 
-                <div class="mb-4">
-                    <button onclick="document.getElementById('word-file-input').click()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-bold py-3 px-4 rounded-lg shadow-md uppercase transition flex items-center justify-center gap-2">
-                        <span class="text-xl">📄</span> Ganze Datei laden (.docx, .doc, .odt)
-                    </button>
-                    <input type="file" id="word-file-input" class="hidden" accept=".docx, .doc, .odt, .rtf" onchange="handleWordFileUpload(event)">
-                </div>
-                
-                <div class="w-full relative mb-4">
-                    <div class="absolute inset-0 flex items-center" aria-hidden="true">
-                        <div class="w-full border-t border-emerald-300"></div>
-                    </div>
-                    <div class="relative flex justify-center">
-                        <span class="px-2 bg-emerald-50 text-[10px] font-bold text-emerald-600 uppercase">Oder manuell einfügen</span>
-                    </div>
-                </div>
-
                 <div class="w-full">
-                    <label class="block text-[10px] font-bold text-emerald-600 uppercase mb-1">Word/OpenOffice Tabelle einfügen:</label>
-                    <input type="text" id="word-import-abreise-mass" onpaste="handleAbreiseMassPaste(event)" placeholder="Zellen markieren und hier Strg+V drücken..." class="w-full p-3 border border-emerald-300 rounded-lg text-sm outline-none bg-white shadow-sm">
+                    <label class="block text-[10px] font-bold text-emerald-600 uppercase mb-1">Tabelle kopieren und hier einfügen:</label>
+                    <input type="text" id="word-import-abreise-mass" onpaste="handleAbreiseMassPaste(event)" placeholder="Zellen aus dem Dokument kopieren und hier mit Strg+V einfügen..." class="w-full p-3 border border-emerald-300 rounded-lg text-sm outline-none bg-white shadow-sm">
                 </div>
                 
                 <div id="massen-import-preview-container" class="hidden mt-4 bg-white border border-emerald-200 rounded p-2 shadow-inner">
@@ -1301,7 +1284,7 @@
                 
                 return `<div class="memory-card relative bg-white border border-gray-200 p-3 rounded-lg shadow-sm hover:shadow-md transition ${statusClass}">
                     <div class="flex justify-between items-start mb-1">
-                        <div onclick="editMemoryEntry('${p.id}')" class="font-black text-blue-900 uppercase text-xs truncate flex-grow cursor-pointer">${p.name}${fStr}</div>
+                        <div onclick="editMemoryEntry('${p.id}')" class="font-bold text-blue-900 uppercase text-xs truncate flex-grow cursor-pointer">${p.name}${fStr}</div>
                         <div class="flex gap-2 ml-2">
                             <button onclick="window.loadFromMemory('${p.id}', '${p.status}')" class="bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-bold py-1 px-3 rounded shadow uppercase">Laden</button>
                             <button onclick="window.deleteMemoryEntry('${p.id}')" class="text-red-600 hover:text-red-800 bg-red-100 hover:bg-red-200 font-black text-sm px-2 py-0.5 rounded transition shadow-sm" title="Patient löschen">✕</button>
@@ -1805,7 +1788,10 @@ window.addEventListener('DOMContentLoaded', () => {
             }
         }
         async function parseMassAbreiseText(text) {
-            const cleanRawText = text.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, ' ');
+            // Ersetze Word-Tabellen-Trenner (\x07) und Tabs durch Zeilenumbrüche für .doc Tabellen
+            let cleanRawText = text.replace(/[\x07\t]/g, '\n');
+            // Entferne restliche nicht-druckbare Zeichen außer Zeilenumbrüchen
+            cleanRawText = cleanRawText.replace(/[\x00-\x06\x08\x0B\x0C\x0E-\x1F\x7F]/g, ' ');
             const lines = cleanRawText.split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 2);
             
             let currentDate = globalMassImportDate; 
@@ -1821,7 +1807,9 @@ window.addEventListener('DOMContentLoaded', () => {
                     continue;
                 }
 
-                if (line.includes(',') && !line.includes('Seite') && !line.includes('Taxianmeldung') && currentDate !== "") {
+                // NEU: Prüfung auf Komma ODER "Fam." ODER "Familie"
+                const isNameLine = line.includes(',') || line.toLowerCase().startsWith('fam.') || line.toLowerCase().startsWith('familie') || line.toLowerCase().includes('fam ');
+                if (isNameLine && !line.includes('Seite') && !line.includes('Taxianmeldung') && currentDate !== "") {
                     let name = line.trim();
                     let addressLine = lines[i + 1] || "";
                     
@@ -1913,19 +1901,32 @@ window.addEventListener('DOMContentLoaded', () => {
                     
                     if (!["T", "TKH", "Zug"].includes(vermerk)) continue;
 
-                    const nachname = row[1] || "";
-                    const vorname = row[2] || "";
+                    const nachname = String(row[1] || "").trim();
+                    const vorname = String(row[2] || "").trim();
                     const name = `${nachname} ${vorname}`.trim();
-                    const homeAddr = `${row[4] || ""} ${row[5] || ""}, ${row[6] || ""}`.trim(); // PLZ Ort, Straße
+                    
+                    let plz = String(row[4] || "").trim();
+                    let ort = String(row[5] || "").trim();
+                    let strasse = String(row[6] || "").trim();
+                    let homeAddrParts = [];
+                    if (plz || ort) homeAddrParts.push(`${plz} ${ort}`.trim());
+                    if (strasse) homeAddrParts.push(strasse);
+                    const homeAddr = homeAddrParts.join(", ");
                     
                     let abholAddr = "";
                     if (vermerk === "TKH") {
                         const klinikName = String(row[8] || "").trim(); // Spalte I
-                        abholAddr = await autoSearchClinic(klinikName);
+                        let savedAddrs = JSON.parse(localStorage.getItem('savedAbholadressen') || '[]');
+                        let found = [...FIXED_KLINIKEN, ...savedAddrs].find(a => a.toLowerCase().includes(klinikName.toLowerCase()));
+                        if (found) {
+                            abholAddr = found;
+                        } else {
+                            abholAddr = await autoSearchClinic(klinikName);
+                        }
                     } else if (vermerk === "Zug") {
                         abholAddr = "Bahnhofstr. 4a, 38889 Blankenburg";
                     } else if (vermerk === "T") {
-                        abholAddr = homeAddr;
+                        abholAddr = ""; // Heimatadresse wird verwendet
                     }
 
                     let telefon = String(row[7] || "");
@@ -1939,7 +1940,17 @@ window.addEventListener('DOMContentLoaded', () => {
 
                     if (name && homeAddr) {
                         const enhancedHomeAddr = await enhanceAddressWithOrtsteil(homeAddr);
-                        const enhancedAbholAddr = await enhanceAddressWithOrtsteil(abholAddr);
+                        await new Promise(resolve => setTimeout(resolve, 250)); // Rate-Limiting Schutz
+
+                        let enhancedAbholAddr = abholAddr;
+                        if (abholAddr && vermerk === "TKH") {
+                            enhancedAbholAddr = await enhanceAddressWithOrtsteil(abholAddr);
+                            const klinikName = String(row[8] || "").trim();
+                            if (klinikName && !enhancedAbholAddr.toLowerCase().includes(klinikName.toLowerCase())) {
+                                enhancedAbholAddr = klinikName + ", " + enhancedAbholAddr;
+                            }
+                            await new Promise(resolve => setTimeout(resolve, 250)); // Rate-Limiting Schutz
+                        }
 
                         const formattedDate = row[0] ? formatExcelDate(row[0]) : getTodayISO();
 
@@ -1970,47 +1981,6 @@ window.addEventListener('DOMContentLoaded', () => {
                 event.target.value = ''; // Reset Input
             };
             reader.readAsArrayBuffer(file);
-        }
-
-        // --- HIER WURDE DIE PDF LOGIK ENTFERNT UND DOC/ODT ALS STANDARD FALLBACK GESTÄRKT ---
-        async function handleWordFileUpload(event) {
-            const file = event.target.files[0];
-            if (!file) return;
-
-            const originalHTML = event.target.previousElementSibling.innerHTML;
-            event.target.previousElementSibling.innerText = "⏳ Lese Datei...";
-
-            const extension = file.name.toLowerCase().split('.').pop();
-
-            if (extension === 'docx') {
-                const reader = new FileReader();
-                reader.onload = async (e) => {
-                    const arrayBuffer = e.target.result;
-                    try {
-                        const result = await mammoth.extractRawText({ arrayBuffer: arrayBuffer });
-                        event.target.previousElementSibling.innerText = "⏳ Prüfe Adressen...";
-                        await parseMassAbreiseText(result.value); 
-                    } catch (error) {
-                        console.error("Fehler beim Word-Import:", error);
-                        alert("Es gab einen Fehler beim Auslesen der .docx-Datei.");
-                    }
-                    event.target.previousElementSibling.innerHTML = originalHTML;
-                    event.target.value = ''; 
-                };
-                reader.readAsArrayBuffer(file);
-            } else {
-                // Fallback für doc, odt, rtf
-                const reader = new FileReader();
-                reader.onload = async (e) => {
-                    let text = e.target.result;
-                    text = text.replace(/[^\x20-\x7E\xA0-\xFF\n\r\t]/g, ' ').replace(/\s+/g, ' ');
-                    event.target.previousElementSibling.innerText = "⏳ Prüfe Adressen...";
-                    await parseMassAbreiseText(text); 
-                    event.target.previousElementSibling.innerHTML = originalHTML;
-                    event.target.value = '';
-                };
-                reader.readAsBinaryString(file);
-            }
         }
 
         // --- HIER WURDE DER (TKH) FILTER FÜR DIE API EINGEBAUT ---
