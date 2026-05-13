@@ -17,6 +17,7 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css" />
     
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mammoth@1.6.0/mammoth.browser.min.js"></script>
     
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
@@ -374,6 +375,20 @@
                         </div>
                     </div>
                 </div>
+
+                <div class="bg-green-50 p-4 border border-green-100 rounded-lg">
+                    <h4 class="text-xs font-bold uppercase text-green-800 mb-3">Finanzen (Kalkulation)</h4>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-[10px] font-bold text-green-700 uppercase mb-1">Preis pro Besetzt-KM (€)</label>
+                            <input type="number" step="0.01" id="set-preis-besetzt" class="w-full p-2 border rounded text-sm outline-none focus:border-green-500">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-green-700 uppercase mb-1">Kosten pro Leer-KM (€)</label>
+                            <input type="number" step="0.01" id="set-preis-leer" class="w-full p-2 border rounded text-sm outline-none focus:border-green-500">
+                        </div>
+                    </div>
+                </div>
                 
                 <div class="flex gap-4 mt-2">
                     <button onclick="document.getElementById('settingsModal').classList.add('hidden')" class="flex-1 bg-gray-200 py-3 rounded font-bold uppercase hover:bg-gray-300 transition text-gray-700">Abbrechen</button>
@@ -385,11 +400,11 @@
 
     <div id="memoryModal" class="hidden fixed inset-0 bg-black/50 z-[100] overflow-y-auto p-4 sm:p-8 no-print">
         <div class="bg-white rounded-xl p-6 w-full max-w-6xl mx-auto mt-6 mb-10 flex flex-col shadow-2xl">
-            <div class="mb-4">
-                <h3 class="text-xl font-bold text-gray-800 mb-2">Patienten Management</h3>
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-bold text-gray-800">Patienten-Management</h3>
                 <div class="flex items-center gap-2">
                     <input type="text" id="memorySearch" onkeyup="filterMemory()" placeholder="🔍 Suche..." class="p-2 border rounded-lg text-sm w-64 outline-none border-blue-300">
-                    <button onclick="document.getElementById('backupSearchFile').click()" class="bg-indigo-100 hover:bg-indigo-200 text-indigo-800 font-bold py-2 px-3 rounded-lg text-[10px] transition border border-indigo-300 flex items-center gap-1" title="In Backups suchen">
+                    <button onclick="document.getElementById('backupSearchFile').click()" class="bg-indigo-100 hover:bg-indigo-200 text-indigo-800 font-bold py-2 px-3 rounded-lg text-sm transition border border-indigo-300 flex items-center gap-1" title="In Backups suchen">
                         📂 Archiv-Suche
                     </button>
                     <input type="file" id="backupSearchFile" class="hidden" accept=".json" multiple onchange="handleBackupSearch(event)">
@@ -397,20 +412,36 @@
             </div>
 
             <div class="flex gap-4 mb-6">
-                <button onclick="toggleImport('excel')" class="flex-1 bg-orange-500 hover:bg-orange-600 text-white font-bold py-2 rounded-lg shadow-md uppercase transition flex items-center justify-center text-[10px]">
-                    Anreisen einfügen
+                <button onclick="toggleImport('excel')" class="flex-1 bg-orange-500 hover:bg-orange-600 text-white font-bold py-3 rounded-lg shadow-md uppercase transition flex items-center justify-center gap-2">
+                    <span class="text-xl">🚚</span> Anreisen einfügen (Excel)
                 </button>
-                <button onclick="toggleImport('word')" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 rounded-lg shadow-md uppercase transition flex items-center justify-center text-[10px]">
-                    Abreisen einfügen
+                <button onclick="toggleImport('word')" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg shadow-md uppercase transition flex items-center justify-center gap-2">
+                    <span class="text-xl">🏠</span> Abreisen einfügen (Dokumente)
                 </button>
             </div>
             
             <div id="word-import-container" class="hidden bg-emerald-50 p-5 rounded-xl mb-6 border border-emerald-200 shrink-0 transition-all">
-                <h4 class="text-emerald-800 text-sm font-black uppercase mb-3 italic">Abreise Wochen-Liste Importieren</h4>
+                <h4 class="text-emerald-800 text-sm font-black uppercase mb-3 italic">Abreise Wochen-Liste Importieren (Word / OpenOffice)</h4>
                 
+                <div class="mb-4">
+                    <button onclick="document.getElementById('word-file-input').click()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold py-3 px-4 rounded-lg shadow-md uppercase transition flex items-center justify-center gap-2">
+                        <span class="text-xl">📄</span> Ganze Datei laden (.docx, .doc, .odt)
+                    </button>
+                    <input type="file" id="word-file-input" class="hidden" accept=".docx, .doc, .odt, .rtf" onchange="handleWordFileUpload(event)">
+                </div>
+                
+                <div class="w-full relative mb-4">
+                    <div class="absolute inset-0 flex items-center" aria-hidden="true">
+                        <div class="w-full border-t border-emerald-300"></div>
+                    </div>
+                    <div class="relative flex justify-center">
+                        <span class="px-2 bg-emerald-50 text-[10px] font-bold text-emerald-600 uppercase">Oder manuell einfügen</span>
+                    </div>
+                </div>
+
                 <div class="w-full">
-                    <label class="block text-[10px] font-bold text-emerald-600 uppercase mb-1">Tabelle kopieren und hier einfügen:</label>
-                    <input type="text" id="word-import-abreise-mass" onpaste="handleAbreiseMassPaste(event)" placeholder="Zellen aus dem Dokument kopieren und hier mit Strg+V einfügen..." class="w-full p-3 border border-emerald-300 rounded-lg text-sm outline-none bg-white shadow-sm">
+                    <label class="block text-[10px] font-bold text-emerald-600 uppercase mb-1">Word/OpenOffice Tabelle einfügen:</label>
+                    <input type="text" id="word-import-abreise-mass" onpaste="handleAbreiseMassPaste(event)" placeholder="Zellen markieren und hier Strg+V drücken..." class="w-full p-3 border border-emerald-300 rounded-lg text-sm outline-none bg-white shadow-sm">
                 </div>
                 
                 <div id="massen-import-preview-container" class="hidden mt-4 bg-white border border-emerald-200 rounded p-2 shadow-inner">
@@ -435,7 +466,7 @@
                 <div id="excel-import-container" class="hidden mb-4 p-4 bg-white border-2 border-blue-200 rounded-lg shadow-sm transition-all">
                     
                     <div class="mb-4">
-                        <button onclick="document.getElementById('excel-file-input').click()" class="w-full bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-bold py-3 px-4 rounded-lg shadow-md uppercase transition flex items-center justify-center gap-2">
+                        <button onclick="document.getElementById('excel-file-input').click()" class="w-full bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold py-3 px-4 rounded-lg shadow-md uppercase transition flex items-center justify-center gap-2">
                             <span class="text-xl">📊</span> Ganze Excel-Datei laden & filtern (.xlsx)
                         </button>
                         <input type="file" id="excel-file-input" class="hidden" accept=".xlsx, .xls" onchange="handleExcelFileUpload(event)">
@@ -460,11 +491,9 @@
                     <input id="mem-name" class="p-2 text-sm border rounded font-bold" placeholder="Name">
                 </div>
 
-                <div class="grid grid-cols-2 gap-2 mb-2">
+                <div class="grid grid-cols-3 gap-2 mb-2">
                     <input id="mem-addr" list="global-address-list" class="p-2 text-xs border rounded" placeholder="Heimatadresse" onchange="checkManualOrtsteil(this)">
                     <input id="mem-phone" class="p-2 text-sm border rounded" placeholder="Telefon">
-                </div>
-                <div class="grid grid-cols-1 gap-2 mb-2">
                     <div class="relative flex gap-1">
                         <input id="mem-addr-alt" list="saved-abholadressen" class="p-2 text-xs border rounded bg-white flex-grow" placeholder="Abholadresse (Klinikname + Adresse)">
                         <button onclick="quickSaveKlinik()" title="Klinik in Liste speichern" class="bg-white border rounded px-2 hover:bg-gray-100 text-sm">💾</button>
@@ -484,10 +513,10 @@
                     </div>
                 </div>
                 
-                <div class="flex flex-col gap-2 mb-3 p-2 bg-white/50 rounded-lg border border-blue-100">
+                <div class="flex items-center gap-6 mb-3 p-2 bg-white/50 rounded-lg border border-blue-100">
                     <span class="text-[10px] font-bold uppercase text-gray-500 italic">Status:</span>
-                    <label class="flex items-center gap-2 cursor-pointer"><input type="radio" name="mem-status-choice" value="anreise" id="status-anreise" checked><span class="text-[10px] font-bold text-orange-600 uppercase">Anreise</span></label>
-                    <label class="flex items-center gap-2 cursor-pointer"><input type="radio" name="mem-status-choice" value="abreise" id="status-abreise"><span class="text-[10px] font-bold text-blue-800 uppercase">Abreise</span></label>
+                    <label class="flex items-center gap-2 cursor-pointer"><input type="radio" name="mem-status-choice" value="anreise" id="status-anreise" checked><span class="text-sm font-bold text-orange-600 uppercase">Anreise</span></label>
+                    <label class="flex items-center gap-2 cursor-pointer"><input type="radio" name="mem-status-choice" value="abreise" id="status-abreise"><span class="text-sm font-bold text-blue-800 uppercase">Abreise</span></label>
                 </div>
 
                 <div class="grid grid-cols-3 gap-4 items-end">
@@ -499,30 +528,30 @@
                         <label class="text-[9px] font-bold text-orange-700 uppercase ml-1 italic">Abreise</label>
                         <input id="mem-date-out" type="date" class="p-2 text-sm border border-orange-200 rounded w-full font-bold text-orange-700">
                     </div>
-                    <button onclick="addManualToMemory()" class="bg-blue-600 text-white py-2 rounded-lg text-[10px] font-bold uppercase shadow-md hover:bg-blue-700 transition">Speichern</button>
+                    <button onclick="addManualToMemory()" class="bg-blue-600 text-white py-2 rounded-lg text-sm font-bold uppercase shadow-md hover:bg-blue-700 transition">Speichern</button>
                 </div>
             </div>
 
-            <button onclick="document.getElementById('memoryModal').classList.add('hidden')" class="w-full bg-gray-200 py-2 mb-2 rounded font-bold uppercase hover:bg-gray-300 transition text-[10px] border border-gray-300">Schließen</button>
+            <button onclick="document.getElementById('memoryModal').classList.add('hidden')" class="w-full bg-gray-200 py-2 mb-2 rounded font-bold uppercase hover:bg-gray-300 transition text-sm border border-gray-300">Schließen</button>
 
-            <div class="grid grid-cols-1 gap-4 mt-2">
+            <div class="grid grid-cols-2 gap-4 mt-2">
                 <div class="flex flex-col border rounded-lg bg-gray-50">
                     <div class="bg-blue-800 text-white p-2 flex justify-between items-center rounded-t-lg">
-                        <span class="text-[10px] font-bold uppercase italic flex-grow text-center pl-6">Abreiseliste</span>
+                        <span class="text-xs font-bold uppercase italic flex-grow text-center pl-6">Abreiseliste</span>
                         <button onclick="window.clearAbreiseList()" class="text-white hover:text-red-300 transition outline-none" title="Komplette Abreiseliste löschen">🗑</button>
                     </div>
                     <div id="memoryListAbreise" class="overflow-y-auto p-3 space-y-2 h-[450px]"></div>
                 </div>
                 <div class="flex flex-col border rounded-lg bg-gray-50">
                     <div class="bg-orange-500 text-white p-2 flex justify-between items-center rounded-t-lg">
-                        <span class="text-[10px] font-bold uppercase italic flex-grow text-center pl-6">Anreiseliste</span>
+                        <span class="text-xs font-bold uppercase italic flex-grow text-center pl-6">Anreiseliste</span>
                         <button onclick="window.clearAnreiseList()" class="text-white hover:text-red-900 transition outline-none" title="Komplette Anreiseliste löschen">🗑</button>
                     </div>
                     <div id="memoryListAnreise" class="overflow-y-auto p-3 space-y-2 h-[450px]"></div>
                 </div>
             </div>
             
-            <button onclick="document.getElementById('memoryModal').classList.add('hidden')" class="mt-6 w-full bg-gray-200 py-2 rounded font-bold uppercase hover:bg-gray-300 transition text-[10px]">Schließen</button>
+            <button onclick="document.getElementById('memoryModal').classList.add('hidden')" class="mt-6 w-full bg-gray-200 py-3 rounded font-bold uppercase hover:bg-gray-300 transition">Schließen</button>
         </div>
     </div>
 
@@ -651,6 +680,8 @@
             defaultStartAddr: "Michaelstein 18, 38889 Blankenburg",
             bufferMinutes: 10,
             defaultTabName: "TP ..........",
+            preisBesetzt: 1.50,
+            preisLeer: 0.50,
             typeLabels: {
                 klinik: "Klinik",
                 anreise: "Anreise",
@@ -681,6 +712,9 @@
             document.getElementById('set-lbl-abreise').value = appSettings.typeLabels.abreise;
             document.getElementById('set-lbl-wegpunkt').value = appSettings.typeLabels.wegpunkt;
 
+            document.getElementById('set-preis-besetzt').value = appSettings.preisBesetzt !== undefined ? appSettings.preisBesetzt : 1.50;
+            document.getElementById('set-preis-leer').value = appSettings.preisLeer !== undefined ? appSettings.preisLeer : 0.50;
+
             document.getElementById('settingsModal').classList.remove('hidden');
         }
 
@@ -694,6 +728,9 @@
             appSettings.typeLabels.anreise = document.getElementById('set-lbl-anreise').value;
             appSettings.typeLabels.abreise = document.getElementById('set-lbl-abreise').value;
             appSettings.typeLabels.wegpunkt = document.getElementById('set-lbl-wegpunkt').value;
+
+            appSettings.preisBesetzt = parseFloat(document.getElementById('set-preis-besetzt').value) || 0;
+            appSettings.preisLeer = parseFloat(document.getElementById('set-preis-leer').value) || 0;
 
             localStorage.setItem('appSettings', JSON.stringify(appSettings));
             location.reload(); 
@@ -1284,7 +1321,7 @@
                 
                 return `<div class="memory-card relative bg-white border border-gray-200 p-3 rounded-lg shadow-sm hover:shadow-md transition ${statusClass}">
                     <div class="flex justify-between items-start mb-1">
-                        <div onclick="editMemoryEntry('${p.id}')" class="font-bold text-blue-900 uppercase text-xs truncate flex-grow cursor-pointer">${p.name}${fStr}</div>
+                        <div onclick="editMemoryEntry('${p.id}')" class="font-black text-blue-900 uppercase text-xs truncate flex-grow cursor-pointer">${p.name}${fStr}</div>
                         <div class="flex gap-2 ml-2">
                             <button onclick="window.loadFromMemory('${p.id}', '${p.status}')" class="bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-bold py-1 px-3 rounded shadow uppercase">Laden</button>
                             <button onclick="window.deleteMemoryEntry('${p.id}')" class="text-red-600 hover:text-red-800 bg-red-100 hover:bg-red-200 font-black text-sm px-2 py-0.5 rounded transition shadow-sm" title="Patient löschen">✕</button>
@@ -1364,8 +1401,8 @@
             
             const title = savedData ? savedData.title : appSettings.defaultTabName;
             
-            // --- HIER WURDE DER SHARE-BUTTON SOWIE DIE PREISANZEIGE EINGEBAUT ---
-            cont.innerHTML = `<div class="p-6 h-full flex flex-col"><h2 contenteditable="true" onblur="handleTitleChange(${id}, this)" class="tour-title text-2xl font-black italic text-gray-700 outline-none uppercase mb-4">${title}</h2><div class="flex flex-row items-center gap-4 bg-[#f8fafc] border border-blue-100 p-3 rounded-xl mb-4 shadow-sm"><div class="flex flex-col flex-1"><label class="text-[10px] font-bold uppercase text-blue-800 ml-1 mb-1">Tour-Datum</label><input type="date" class="tourDate p-2 border border-gray-200 rounded-md text-sm font-bold shadow-sm w-full outline-none focus:border-blue-500" onchange="saveAll()"></div><div class="flex flex-col flex-1"><label class="text-[10px] font-bold uppercase text-blue-800 ml-1 mb-1">Abfahrt Klinik</label><select class="startTime w-full p-2 border border-gray-200 rounded-md text-sm font-bold shadow-sm outline-none focus:border-blue-500" onchange="saveAll()"></select></div></div><div class="metrics-bar bg-white border border-gray-200 rounded-lg p-3 mb-4 flex justify-between items-center text-xs font-black shadow-sm no-print hidden"><div class="flex flex-col text-blue-800"><span class="text-[9px] uppercase">🛣 Gesamt</span><span class="val-gesamt text-sm">0.0 km</span></div><div class="flex items-center gap-4"><div class="flex flex-col text-right hidden val-preis-container border-r border-gray-200 pr-4"><span class="text-[9px] font-bold text-green-600">Besetzt: <span class="val-besetzt-preis">0.00 €</span></span><span class="text-[9px] font-bold text-red-500">Leer: <span class="val-leer-preis">0.00 €</span></span><span class="text-[11px] font-black mt-0.5 val-diff-preis">0.00 €</span></div><div class="flex flex-col text-red-600" title="Strecke ohne Patient (Leerfahrt)"><span class="text-[9px] uppercase">⚠️ Leer-KM</span><span class="val-leer text-sm">0.0 km</span></div></div></div><div class="stopsContainer space-y-2"></div><div class="mt-6 flex flex-col gap-2 border-t pt-4 no-print"><div class="comparison-container flex flex-col gap-1 mb-2 bg-white p-2 border rounded-lg shadow-inner"></div><button class="addStopButton w-full py-3 bg-slate-300 text-slate-900 text-sm font-black border-2 border-slate-400 rounded hover:bg-slate-400 uppercase shadow-sm transition">+ Stopp hinzufügen</button><div class="flex items-center justify-between bg-gray-50 p-3 rounded-lg border border-gray-200 mt-2"><span class="text-[10px] font-black uppercase text-gray-500 italic">Bevorzugter Modus:</span><div class="route-selector-container"><div class="route-opt ${(savedData && savedData.routeMode === 'fastest' || !savedData) ? 'active' : ''}" data-mode="fastest" onclick="setRouteMode(this)">Schnellste</div><div class="route-opt ${(savedData && savedData.routeMode === 'eco') ? 'active' : ''}" data-mode="eco" onclick="setRouteMode(this)">Sparsamste</div><div class="route-opt ${(savedData && savedData.routeMode === 'shortest') ? 'active' : ''}" data-mode="shortest" onclick="setRouteMode(this)">Kürzeste</div></div></div><button class="optimizeButton w-full py-4 bg-blue-600 text-white font-black rounded-lg shadow-xl hover:bg-blue-700 uppercase transition-all mt-2">📍 Route berechnen</button><button onclick="shareCurrentRoute()" class="w-full py-3 bg-green-600 text-white font-black rounded-lg shadow-xl hover:bg-green-700 uppercase transition-all mt-2">🔗 Route Teilen (Google Maps)</button><button onclick="clearFullPlaner()" class="w-full py-2 bg-red-200 text-red-800 text-[10px] font-bold rounded hover:bg-red-300 uppercase transition border border-red-400 mt-2 mb-8">🗑 Planer löschen</button></div></div>`;
+            // --- HIER WURDE DER SHARE-BUTTON EINGEBAUT ---
+            cont.innerHTML = `<div class="p-6 h-full flex flex-col"><h2 contenteditable="true" onblur="handleTitleChange(${id}, this)" class="tour-title text-2xl font-black italic text-gray-700 outline-none uppercase mb-4">${title}</h2><div class="flex flex-row items-center gap-4 bg-[#f8fafc] border border-blue-100 p-3 rounded-xl mb-4 shadow-sm"><div class="flex flex-col flex-1"><label class="text-[10px] font-bold uppercase text-blue-800 ml-1 mb-1">Tour-Datum</label><input type="date" class="tourDate p-2 border border-gray-200 rounded-md text-sm font-bold shadow-sm w-full outline-none focus:border-blue-500" onchange="saveAll()"></div><div class="flex flex-col flex-1"><label class="text-[10px] font-bold uppercase text-blue-800 ml-1 mb-1">Abfahrt Klinik</label><select class="startTime w-full p-2 border border-gray-200 rounded-md text-sm font-bold shadow-sm outline-none focus:border-blue-500" onchange="saveAll()"></select></div></div><div class="metrics-bar bg-white border border-gray-200 rounded-lg p-3 mb-4 flex justify-between items-center text-xs font-black shadow-sm no-print hidden"><div class="flex flex-col text-blue-800"><span class="text-[9px] uppercase">🛣 Gesamt</span><span class="val-gesamt text-sm">0.0 km</span></div><div class="flex flex-col text-red-600" title="Strecke ohne Patient (Leerfahrt)"><span class="text-[9px] uppercase">⚠️ Leer-KM</span><span class="val-leer text-sm">0.0 km</span></div><div class="flex flex-col text-green-600" title="Kalkulierter Ertrag (Besetzt vs. Leer)"><span class="text-[9px] uppercase">💶 Ertrag</span><span class="val-kalk text-sm">0.00 €</span></div></div><div class="stopsContainer space-y-2"></div><div class="mt-6 flex flex-col gap-2 border-t pt-4 no-print"><div class="comparison-container flex flex-col gap-1 mb-2 bg-white p-2 border rounded-lg shadow-inner"></div><button class="addStopButton w-full py-3 bg-slate-300 text-slate-900 text-sm font-black border-2 border-slate-400 rounded hover:bg-slate-400 uppercase shadow-sm transition">+ Stopp hinzufügen</button><div class="flex items-center justify-between bg-gray-50 p-3 rounded-lg border border-gray-200 mt-2"><span class="text-[10px] font-black uppercase text-gray-500 italic">Bevorzugter Modus:</span><div class="route-selector-container"><div class="route-opt ${(savedData && savedData.routeMode === 'fastest' || !savedData) ? 'active' : ''}" data-mode="fastest" onclick="setRouteMode(this)">Schnellste</div><div class="route-opt ${(savedData && savedData.routeMode === 'eco') ? 'active' : ''}" data-mode="eco" onclick="setRouteMode(this)">Sparsamste</div><div class="route-opt ${(savedData && savedData.routeMode === 'shortest') ? 'active' : ''}" data-mode="shortest" onclick="setRouteMode(this)">Kürzeste</div></div></div><button class="optimizeButton w-full py-4 bg-blue-600 text-white font-black rounded-lg shadow-xl hover:bg-blue-700 uppercase transition-all mt-2">📍 Route berechnen</button><button onclick="shareCurrentRoute()" class="w-full py-3 bg-green-600 text-white font-black rounded-lg shadow-xl hover:bg-green-700 uppercase transition-all mt-2">🔗 Route Teilen (Google Maps)</button><button onclick="clearFullPlaner()" class="w-full py-2 bg-red-200 text-red-800 text-[10px] font-bold rounded hover:bg-red-300 uppercase transition border border-red-400 mt-2 mb-8">🗑 Planer löschen</button></div></div>`;
             document.getElementById('tabs-content').appendChild(cont);
             
             const btn = document.createElement('button');
@@ -1582,31 +1619,26 @@
                         mBar.classList.remove('hidden');
                         mBar.querySelector('.val-gesamt').innerText = totalDist.toFixed(1) + ' km';
                         mBar.querySelector('.val-leer').innerText = emptyKm.toFixed(1) + ' km';
+
+                        // NEU: Gewinn/Verlust Berechnung
+                        const besetztKm = totalDist - emptyKm;
+                        const pBesetzt = appSettings.preisBesetzt !== undefined ? parseFloat(appSettings.preisBesetzt) : 1.50;
+                        const pLeer = appSettings.preisLeer !== undefined ? parseFloat(appSettings.preisLeer) : 0.50;
+                        const ertrag = (besetztKm * pBesetzt) - (emptyKm * pLeer);
                         
-                        // --- NEU: PREIS BERECHNUNG ---
-                        const preisContainer = mBar.querySelector('.val-preis-container');
-                        if (preisContainer) {
-                            preisContainer.classList.remove('hidden');
-                            const besetztKm = totalDist - emptyKm;
-                            const besetztPreis = besetztKm * 1.30;
-                            const leerPreis = emptyKm * 1.30;
-                            const diffPreis = besetztPreis - leerPreis;
-                            
-                            mBar.querySelector('.val-besetzt-preis').innerText = besetztPreis.toFixed(2) + ' €';
-                            mBar.querySelector('.val-leer-preis').innerText = leerPreis.toFixed(2) + ' €';
-                            
-                            const diffElem = mBar.querySelector('.val-diff-preis');
-                            if (diffPreis < 0) {
-                                diffElem.innerText = 'Verlust: ' + diffPreis.toFixed(2) + ' €';
-                                diffElem.classList.remove('text-green-600');
-                                diffElem.classList.add('text-red-600');
+                        const kalkElem = mBar.querySelector('.val-kalk');
+                        if (kalkElem) {
+                            kalkElem.innerText = ertrag.toFixed(2) + ' €';
+                            const parentBlock = kalkElem.parentElement;
+                            if (ertrag >= 0) {
+                                parentBlock.classList.remove('text-red-600');
+                                parentBlock.classList.add('text-green-600');
                             } else {
-                                diffElem.innerText = 'Gewinn: +' + diffPreis.toFixed(2) + ' €';
-                                diffElem.classList.remove('text-red-600');
-                                diffElem.classList.add('text-green-600');
+                                parentBlock.classList.remove('text-green-600');
+                                parentBlock.classList.add('text-red-600');
                             }
                         }
-                        
+
                     } else {
                         mBar.classList.add('hidden');
                     }
@@ -1689,89 +1721,96 @@
             });
             window.print();
         }
-// --- VERBESSERTES VOLL-SICHERN (Mit Dropbox-Support am Handy) ---
-async function exportData() {
-    const data = {
-        settings: JSON.parse(localStorage.getItem('appSettings')) || null,
-        memory: JSON.parse(localStorage.getItem('patientMemory') || '[]'),
-        tours: JSON.parse(localStorage.getItem('activeToursData') || '{}'),
-        abholadressen: JSON.parse(localStorage.getItem('savedAbholadressen') || '[]'),
-        globalHistory: JSON.parse(localStorage.getItem('globalAddressHistory') || '[]'),
-        waypointHistory: JSON.parse(localStorage.getItem('waypointAddressHistory') || '[]')
-    };
-    
-    const jsonStr = JSON.stringify(data, null, 2);
-    const blob = new Blob([jsonStr], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    
-    const now = new Date();
-    const fileName = `backup-planer-${getTodayISO()}_${String(now.getHours()).padStart(2, '0')}-${String(now.getMinutes()).padStart(2, '0')}.json`;
-    
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = fileName;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-}
 
-// --- BACKUP IMPORT ---
-function importData(event) {
-    const file = event.target.files[0]; 
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = (e) => {
-        try {
-            const data = JSON.parse(e.target.result);
+        async function exportData() {
+            const data = {
+                memory: JSON.parse(localStorage.getItem('patientMemory') || '[]'),
+                tours: JSON.parse(localStorage.getItem('activeToursData') || '{}'),
+                abholadressen: JSON.parse(localStorage.getItem('savedAbholadressen') || '[]'),
+                globalHistory: JSON.parse(localStorage.getItem('globalAddressHistory') || '[]'),
+                waypointHistory: JSON.parse(localStorage.getItem('waypointAddressHistory') || '[]')
+            };
+            const fileName = `Planer_Backup_${getTodayISO()}.json`;
+            const jsonStr = JSON.stringify(data, null, 2);
             
-            // Daten in LocalStorage schreiben
-            if (data.settings) localStorage.setItem('appSettings', JSON.stringify(data.settings));
-            if (data.memory) localStorage.setItem('patientMemory', JSON.stringify(data.memory));
-            if (data.tours) localStorage.setItem('activeToursData', JSON.stringify(data.tours));
-            if (data.abholadressen) localStorage.setItem('savedAbholadressen', JSON.stringify(data.abholadressen));
-            if (data.globalHistory) localStorage.setItem('globalAddressHistory', JSON.stringify(data.globalHistory));
-            if (data.waypointHistory) localStorage.setItem('waypointAddressHistory', JSON.stringify(data.waypointHistory));
-            
-            alert("Import erfolgreich! Die Seite wird nun neu geladen.");
-            location.reload(); // Seite neu laden, um Daten anzuzeigen
-        } catch(err) {
-            alert("Fehler: Die Datei ist kein gültiges Backup-Format.");
-            console.error(err);
+            try {
+                // Moderne File System Access API - Erzwingt einen nativen "Speichern unter" Dialog!
+                if (window.showSaveFilePicker) {
+                    const fileHandle = await window.showSaveFilePicker({
+                        suggestedName: fileName,
+                        types: [{
+                            description: 'JSON Backup Datei',
+                            accept: {'application/json': ['.json']},
+                        }],
+                    });
+                    const writable = await fileHandle.createWritable();
+                    await writable.write(jsonStr);
+                    await writable.close();
+                    return; // Erfolgreich gespeichert
+                }
+            } catch (err) {
+                // Wenn der User im Dialog auf "Abbrechen" klickt (AbortError), tun wir nichts.
+                if (err.name === 'AbortError') return;
+                console.error("FilePicker fehlgeschlagen, nutze Fallback:", err);
+            }
+
+            // Fallback für ältere Browser oder Wrapper, die showSaveFilePicker evtl. nicht unterstützen
+            try {
+                const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(jsonStr);
+                const a = document.createElement('a');
+                a.style.display = 'none';
+                a.href = dataStr;
+                a.download = fileName;
+                document.body.appendChild(a);
+                if (document.createEvent) {
+                    const e = document.createEvent('MouseEvents');
+                    e.initEvent('click', true, true);
+                    a.dispatchEvent(e);
+                } else {
+                    a.click();
+                }
+                document.body.removeChild(a);
+            } catch (err) {
+                const blob = new Blob([jsonStr], { type: 'application/json' });
+                if (window.navigator && window.navigator.msSaveOrOpenBlob) {
+                    window.navigator.msSaveOrOpenBlob(blob, fileName);
+                } else {
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.style.display = 'none';
+                    a.href = url;
+                    a.download = fileName;
+                    document.body.appendChild(a);
+                    a.click();
+                    setTimeout(() => {
+                        document.body.removeChild(a);
+                        window.URL.revokeObjectURL(url);
+                    }, 100);
+                }
+            }
         }
-    };
-    reader.readAsText(file);
-}
 
-// --- INITIALISIERUNG BEIM START ---
-// Diese Funktion fehlte bisher komplett!
-window.addEventListener('DOMContentLoaded', () => {
-    // 1. Karte initialisieren
-    initMap();
-    
-    // 2. Adress-Listen laden
-    updateAllAddressDatalists();
-    updateAbholadressenDatalist();
-
-    // 3. Bestehende Touren aus dem Speicher laden
-    const savedToursRaw = localStorage.getItem('activeToursData');
-    if (savedToursRaw) {
-        const savedData = JSON.parse(savedToursRaw);
-        if (savedData && savedData.tours && savedData.tours.length > 0) {
-            tabCounter = savedData.tabCounter || 0;
-            // Jede gespeicherte Tour wiederherstellen
-            savedData.tours.forEach(tour => {
-                addNewTab(tour);
-            });
-        } else {
-            addNewTab(); // Falls keine Touren da sind, ein leeres Auto
+        function importData(event) {
+            const file = event.target.files[0]; if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    if (data.memory) localStorage.setItem('patientMemory', JSON.stringify(data.memory));
+                    if (data.tours) localStorage.setItem('activeToursData', JSON.stringify(data.tours));
+                    if (data.abholadressen) localStorage.setItem('savedAbholadressen', JSON.stringify(data.abholadressen));
+                    if (data.globalHistory) localStorage.setItem('globalAddressHistory', JSON.stringify(data.globalHistory));
+                    if (data.waypointHistory) localStorage.setItem('waypointAddressHistory', JSON.stringify(data.waypointHistory));
+                    
+                    document.getElementById('importFile').value = ''; 
+                    location.reload();
+                } catch(err) {
+                    alert("Fehler beim Importieren. Ist die Datei ein gültiges Backup?");
+                    console.error(err);
+                }
+            };
+            reader.readAsText(file);
         }
-    } else {
-        addNewTab(); // Erststart
-    }
-});
-
         // --- MASSEN-IMPORT LOGIK ---
         
         let tempMassAbreisen = []; 
@@ -1787,11 +1826,9 @@ window.addEventListener('DOMContentLoaded', () => {
                 setTimeout(() => { document.getElementById('word-import-abreise-mass').value = ""; }, 1500);
             }
         }
+
         async function parseMassAbreiseText(text) {
-            // Ersetze Word-Tabellen-Trenner (\x07) und Tabs durch Zeilenumbrüche für .doc Tabellen
-            let cleanRawText = text.replace(/[\x07\t]/g, '\n');
-            // Entferne restliche nicht-druckbare Zeichen außer Zeilenumbrüchen
-            cleanRawText = cleanRawText.replace(/[\x00-\x06\x08\x0B\x0C\x0E-\x1F\x7F]/g, ' ');
+            const cleanRawText = text.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, ' ');
             const lines = cleanRawText.split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 2);
             
             let currentDate = globalMassImportDate; 
@@ -1807,9 +1844,7 @@ window.addEventListener('DOMContentLoaded', () => {
                     continue;
                 }
 
-                // NEU: Prüfung auf Komma ODER "Fam." ODER "Familie"
-                const isNameLine = line.includes(',') || line.toLowerCase().startsWith('fam.') || line.toLowerCase().startsWith('familie') || line.toLowerCase().includes('fam ');
-                if (isNameLine && !line.includes('Seite') && !line.includes('Taxianmeldung') && currentDate !== "") {
+                if (line.includes(',') && !line.includes('Seite') && !line.includes('Taxianmeldung') && currentDate !== "") {
                     let name = line.trim();
                     let addressLine = lines[i + 1] || "";
                     
@@ -1901,32 +1936,19 @@ window.addEventListener('DOMContentLoaded', () => {
                     
                     if (!["T", "TKH", "Zug"].includes(vermerk)) continue;
 
-                    const nachname = String(row[1] || "").trim();
-                    const vorname = String(row[2] || "").trim();
+                    const nachname = row[1] || "";
+                    const vorname = row[2] || "";
                     const name = `${nachname} ${vorname}`.trim();
-                    
-                    let plz = String(row[4] || "").trim();
-                    let ort = String(row[5] || "").trim();
-                    let strasse = String(row[6] || "").trim();
-                    let homeAddrParts = [];
-                    if (plz || ort) homeAddrParts.push(`${plz} ${ort}`.trim());
-                    if (strasse) homeAddrParts.push(strasse);
-                    const homeAddr = homeAddrParts.join(", ");
+                    const homeAddr = `${row[4] || ""} ${row[5] || ""}, ${row[6] || ""}`.trim(); // PLZ Ort, Straße
                     
                     let abholAddr = "";
                     if (vermerk === "TKH") {
                         const klinikName = String(row[8] || "").trim(); // Spalte I
-                        let savedAddrs = JSON.parse(localStorage.getItem('savedAbholadressen') || '[]');
-                        let found = [...FIXED_KLINIKEN, ...savedAddrs].find(a => a.toLowerCase().includes(klinikName.toLowerCase()));
-                        if (found) {
-                            abholAddr = found;
-                        } else {
-                            abholAddr = await autoSearchClinic(klinikName);
-                        }
+                        abholAddr = await autoSearchClinic(klinikName);
                     } else if (vermerk === "Zug") {
                         abholAddr = "Bahnhofstr. 4a, 38889 Blankenburg";
                     } else if (vermerk === "T") {
-                        abholAddr = ""; // Heimatadresse wird verwendet
+                        abholAddr = homeAddr;
                     }
 
                     let telefon = String(row[7] || "");
@@ -1940,17 +1962,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
                     if (name && homeAddr) {
                         const enhancedHomeAddr = await enhanceAddressWithOrtsteil(homeAddr);
-                        await new Promise(resolve => setTimeout(resolve, 250)); // Rate-Limiting Schutz
-
-                        let enhancedAbholAddr = abholAddr;
-                        if (abholAddr && vermerk === "TKH") {
-                            enhancedAbholAddr = await enhanceAddressWithOrtsteil(abholAddr);
-                            const klinikName = String(row[8] || "").trim();
-                            if (klinikName && !enhancedAbholAddr.toLowerCase().includes(klinikName.toLowerCase())) {
-                                enhancedAbholAddr = klinikName + ", " + enhancedAbholAddr;
-                            }
-                            await new Promise(resolve => setTimeout(resolve, 250)); // Rate-Limiting Schutz
-                        }
+                        const enhancedAbholAddr = await enhanceAddressWithOrtsteil(abholAddr);
 
                         const formattedDate = row[0] ? formatExcelDate(row[0]) : getTodayISO();
 
@@ -1981,6 +1993,47 @@ window.addEventListener('DOMContentLoaded', () => {
                 event.target.value = ''; // Reset Input
             };
             reader.readAsArrayBuffer(file);
+        }
+
+        // --- HIER WURDE DIE PDF LOGIK ENTFERNT UND DOC/ODT ALS STANDARD FALLBACK GESTÄRKT ---
+        async function handleWordFileUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const originalHTML = event.target.previousElementSibling.innerHTML;
+            event.target.previousElementSibling.innerText = "⏳ Lese Datei...";
+
+            const extension = file.name.toLowerCase().split('.').pop();
+
+            if (extension === 'docx') {
+                const reader = new FileReader();
+                reader.onload = async (e) => {
+                    const arrayBuffer = e.target.result;
+                    try {
+                        const result = await mammoth.extractRawText({ arrayBuffer: arrayBuffer });
+                        event.target.previousElementSibling.innerText = "⏳ Prüfe Adressen...";
+                        await parseMassAbreiseText(result.value); 
+                    } catch (error) {
+                        console.error("Fehler beim Word-Import:", error);
+                        alert("Es gab einen Fehler beim Auslesen der .docx-Datei.");
+                    }
+                    event.target.previousElementSibling.innerHTML = originalHTML;
+                    event.target.value = ''; 
+                };
+                reader.readAsArrayBuffer(file);
+            } else {
+                // Fallback für doc, odt, rtf
+                const reader = new FileReader();
+                reader.onload = async (e) => {
+                    let text = e.target.result;
+                    text = text.replace(/[^\x20-\x7E\xA0-\xFF\n\r\t]/g, ' ').replace(/\s+/g, ' ');
+                    event.target.previousElementSibling.innerText = "⏳ Prüfe Adressen...";
+                    await parseMassAbreiseText(text); 
+                    event.target.previousElementSibling.innerHTML = originalHTML;
+                    event.target.value = '';
+                };
+                reader.readAsBinaryString(file);
+            }
         }
 
         // --- HIER WURDE DER (TKH) FILTER FÜR DIE API EINGEBAUT ---
@@ -2462,4 +2515,5 @@ window.addEventListener('DOMContentLoaded', () => {
             } else { addNewTab(); }
         };
     </script>
-</body> </html>
+</body>
+</html>
