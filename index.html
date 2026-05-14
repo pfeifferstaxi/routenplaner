@@ -377,15 +377,15 @@
                 </div>
 
                 <div class="bg-green-50 p-4 border border-green-100 rounded-lg">
-                    <h4 class="text-xs font-bold uppercase text-green-800 mb-3">Finanzen (Kalkulation)</h4>
+                    <h4 class="text-xs font-bold uppercase text-green-800 mb-3">Finanzen</h4>
                     <div class="grid grid-cols-2 gap-4">
                         <div>
-                            <label class="block text-[10px] font-bold text-green-700 uppercase mb-1">Preis pro Besetzt-KM (€)</label>
-                            <input type="number" step="0.01" id="set-preis-besetzt" class="w-full p-2 border rounded text-sm outline-none focus:border-green-500">
+                            <label class="block text-[10px] font-bold text-green-700 uppercase mb-1">Preis pro Besetzt-KM (Netto €)</label>
+                            <input type="number" id="set-preis-besetzt" step="0.01" class="w-full p-2 border rounded text-sm outline-none focus:border-green-500">
                         </div>
                         <div>
-                            <label class="block text-[10px] font-bold text-green-700 uppercase mb-1">Kosten pro Leer-KM (€)</label>
-                            <input type="number" step="0.01" id="set-preis-leer" class="w-full p-2 border rounded text-sm outline-none focus:border-green-500">
+                            <label class="block text-[10px] font-bold text-green-700 uppercase mb-1">Kosten pro Leer-KM (Netto €)</label>
+                            <input type="number" id="set-preis-leer" step="0.01" class="w-full p-2 border rounded text-sm outline-none focus:border-green-500">
                         </div>
                     </div>
                 </div>
@@ -711,7 +711,7 @@
             document.getElementById('set-lbl-anreise').value = appSettings.typeLabels.anreise;
             document.getElementById('set-lbl-abreise').value = appSettings.typeLabels.abreise;
             document.getElementById('set-lbl-wegpunkt').value = appSettings.typeLabels.wegpunkt;
-
+            
             document.getElementById('set-preis-besetzt').value = appSettings.preisBesetzt !== undefined ? appSettings.preisBesetzt : 1.50;
             document.getElementById('set-preis-leer').value = appSettings.preisLeer !== undefined ? appSettings.preisLeer : 0.50;
 
@@ -728,7 +728,7 @@
             appSettings.typeLabels.anreise = document.getElementById('set-lbl-anreise').value;
             appSettings.typeLabels.abreise = document.getElementById('set-lbl-abreise').value;
             appSettings.typeLabels.wegpunkt = document.getElementById('set-lbl-wegpunkt').value;
-
+            
             appSettings.preisBesetzt = parseFloat(document.getElementById('set-preis-besetzt').value) || 0;
             appSettings.preisLeer = parseFloat(document.getElementById('set-preis-leer').value) || 0;
 
@@ -1402,7 +1402,7 @@
             const title = savedData ? savedData.title : appSettings.defaultTabName;
             
             // --- HIER WURDE DER SHARE-BUTTON EINGEBAUT ---
-            cont.innerHTML = `<div class="p-6 h-full flex flex-col"><h2 contenteditable="true" onblur="handleTitleChange(${id}, this)" class="tour-title text-2xl font-black italic text-gray-700 outline-none uppercase mb-4">${title}</h2><div class="flex flex-row items-center gap-4 bg-[#f8fafc] border border-blue-100 p-3 rounded-xl mb-4 shadow-sm"><div class="flex flex-col flex-1"><label class="text-[10px] font-bold uppercase text-blue-800 ml-1 mb-1">Tour-Datum</label><input type="date" class="tourDate p-2 border border-gray-200 rounded-md text-sm font-bold shadow-sm w-full outline-none focus:border-blue-500" onchange="saveAll()"></div><div class="flex flex-col flex-1"><label class="text-[10px] font-bold uppercase text-blue-800 ml-1 mb-1">Abfahrt Klinik</label><select class="startTime w-full p-2 border border-gray-200 rounded-md text-sm font-bold shadow-sm outline-none focus:border-blue-500" onchange="saveAll()"></select></div></div><div class="metrics-bar bg-white border border-gray-200 rounded-lg p-3 mb-4 flex justify-between items-center text-xs font-black shadow-sm no-print hidden"><div class="flex flex-col text-blue-800"><span class="text-[9px] uppercase">🛣 Gesamt</span><span class="val-gesamt text-sm">0.0 km</span></div><div class="flex flex-col text-red-600" title="Strecke ohne Patient (Leerfahrt)"><span class="text-[9px] uppercase">⚠️ Leer-KM</span><span class="val-leer text-sm">0.0 km</span></div><div class="flex flex-col text-green-600" title="Kalkulierter Ertrag (Besetzt vs. Leer)"><span class="text-[9px] uppercase">💶 Ertrag</span><span class="val-kalk text-sm">0.00 €</span></div></div><div class="stopsContainer space-y-2"></div><div class="mt-6 flex flex-col gap-2 border-t pt-4 no-print"><div class="comparison-container flex flex-col gap-1 mb-2 bg-white p-2 border rounded-lg shadow-inner"></div><button class="addStopButton w-full py-3 bg-slate-300 text-slate-900 text-sm font-black border-2 border-slate-400 rounded hover:bg-slate-400 uppercase shadow-sm transition">+ Stopp hinzufügen</button><div class="flex items-center justify-between bg-gray-50 p-3 rounded-lg border border-gray-200 mt-2"><span class="text-[10px] font-black uppercase text-gray-500 italic">Bevorzugter Modus:</span><div class="route-selector-container"><div class="route-opt ${(savedData && savedData.routeMode === 'fastest' || !savedData) ? 'active' : ''}" data-mode="fastest" onclick="setRouteMode(this)">Schnellste</div><div class="route-opt ${(savedData && savedData.routeMode === 'eco') ? 'active' : ''}" data-mode="eco" onclick="setRouteMode(this)">Sparsamste</div><div class="route-opt ${(savedData && savedData.routeMode === 'shortest') ? 'active' : ''}" data-mode="shortest" onclick="setRouteMode(this)">Kürzeste</div></div></div><button class="optimizeButton w-full py-4 bg-blue-600 text-white font-black rounded-lg shadow-xl hover:bg-blue-700 uppercase transition-all mt-2">📍 Route berechnen</button><button onclick="shareCurrentRoute()" class="w-full py-3 bg-green-600 text-white font-black rounded-lg shadow-xl hover:bg-green-700 uppercase transition-all mt-2">🔗 Route Teilen (Google Maps)</button><button onclick="clearFullPlaner()" class="w-full py-2 bg-red-200 text-red-800 text-[10px] font-bold rounded hover:bg-red-300 uppercase transition border border-red-400 mt-2 mb-8">🗑 Planer löschen</button></div></div>`;
+            cont.innerHTML = `<div class="p-6 h-full flex flex-col"><h2 contenteditable="true" onblur="handleTitleChange(${id}, this)" class="tour-title text-2xl font-black italic text-gray-700 outline-none uppercase mb-4">${title}</h2><div class="flex flex-row items-center gap-4 bg-[#f8fafc] border border-blue-100 p-3 rounded-xl mb-4 shadow-sm"><div class="flex flex-col flex-1"><label class="text-[10px] font-bold uppercase text-blue-800 ml-1 mb-1">Tour-Datum</label><input type="date" class="tourDate p-2 border border-gray-200 rounded-md text-sm font-bold shadow-sm w-full outline-none focus:border-blue-500" onchange="saveAll()"></div><div class="flex flex-col flex-1"><label class="text-[10px] font-bold uppercase text-blue-800 ml-1 mb-1">Abfahrt Klinik</label><select class="startTime w-full p-2 border border-gray-200 rounded-md text-sm font-bold shadow-sm outline-none focus:border-blue-500" onchange="saveAll()"></select></div></div><div class="metrics-bar bg-white border border-gray-200 rounded-lg p-3 mb-4 flex justify-between items-center text-xs font-black shadow-sm no-print hidden"><div class="flex flex-col text-blue-800"><span class="text-[9px] uppercase">🛣 Gesamt</span><span class="val-gesamt text-sm">0.0 km</span></div><div class="flex flex-col text-[9px] leading-tight text-center whitespace-nowrap"><span class="text-green-600"><span class="val-besetzt-euro">0.00 €</span> (Besetzt)</span><span class="text-red-600">- <span class="val-leer-euro">0.00 €</span> (Leer)</span><span class="border-t border-gray-300 mt-0.5 pt-0.5 val-kalk text-[11px]">= 0.00 €</span></div><div class="flex flex-col text-red-600 text-right" title="Strecke ohne Patient (Leerfahrt)"><span class="text-[9px] uppercase">⚠️ Leer-KM</span><span class="val-leer text-sm">0.0 km</span></div></div><div class="stopsContainer space-y-2"></div><div class="mt-6 flex flex-col gap-2 border-t pt-4 no-print"><div class="comparison-container flex flex-col gap-1 mb-2 bg-white p-2 border rounded-lg shadow-inner"></div><button class="addStopButton w-full py-3 bg-slate-300 text-slate-900 text-sm font-black border-2 border-slate-400 rounded hover:bg-slate-400 uppercase shadow-sm transition">+ Stopp hinzufügen</button><div class="flex items-center justify-between bg-gray-50 p-3 rounded-lg border border-gray-200 mt-2"><span class="text-[10px] font-black uppercase text-gray-500 italic">Bevorzugter Modus:</span><div class="route-selector-container"><div class="route-opt ${(savedData && savedData.routeMode === 'fastest' || !savedData) ? 'active' : ''}" data-mode="fastest" onclick="setRouteMode(this)">Schnellste</div><div class="route-opt ${(savedData && savedData.routeMode === 'eco') ? 'active' : ''}" data-mode="eco" onclick="setRouteMode(this)">Sparsamste</div><div class="route-opt ${(savedData && savedData.routeMode === 'shortest') ? 'active' : ''}" data-mode="shortest" onclick="setRouteMode(this)">Kürzeste</div></div></div><button class="optimizeButton w-full py-4 bg-blue-600 text-white font-black rounded-lg shadow-xl hover:bg-blue-700 uppercase transition-all mt-2">📍 Route berechnen</button><button onclick="shareCurrentRoute()" class="w-full py-3 bg-green-600 text-white font-black rounded-lg shadow-xl hover:bg-green-700 uppercase transition-all mt-2">🔗 Route Teilen (Google Maps)</button><button onclick="clearFullPlaner()" class="w-full py-2 bg-red-200 text-red-800 text-[10px] font-bold rounded hover:bg-red-300 uppercase transition border border-red-400 mt-2 mb-8">🗑 Planer löschen</button></div></div>`;
             document.getElementById('tabs-content').appendChild(cont);
             
             const btn = document.createElement('button');
@@ -1617,28 +1617,33 @@
                 if (mBar) {
                     if (totalDist > 0) {
                         mBar.classList.remove('hidden');
-                        mBar.querySelector('.val-gesamt').innerText = totalDist.toFixed(1) + ' km';
-                        mBar.querySelector('.val-leer').innerText = emptyKm.toFixed(1) + ' km';
-
-                        // NEU: Gewinn/Verlust Berechnung
+                        
                         const besetztKm = totalDist - emptyKm;
                         const pBesetzt = appSettings.preisBesetzt !== undefined ? parseFloat(appSettings.preisBesetzt) : 1.50;
                         const pLeer = appSettings.preisLeer !== undefined ? parseFloat(appSettings.preisLeer) : 0.50;
-                        const ertrag = (besetztKm * pBesetzt) - (emptyKm * pLeer);
                         
+                        const ertragBesetzt = besetztKm * pBesetzt;
+                        const ertragLeer = emptyKm * pLeer;
+                        const ertragGesamt = ertragBesetzt - ertragLeer;
+                        
+                        mBar.querySelector('.val-gesamt').innerText = totalDist.toFixed(1) + ' km';
+                        mBar.querySelector('.val-leer').innerText = emptyKm.toFixed(1) + ' km';
+                        
+                        const besetztEuroElem = mBar.querySelector('.val-besetzt-euro');
+                        const leerEuroElem = mBar.querySelector('.val-leer-euro');
                         const kalkElem = mBar.querySelector('.val-kalk');
+                        
+                        if(besetztEuroElem) besetztEuroElem.innerText = ertragBesetzt.toFixed(2) + ' €';
+                        if(leerEuroElem) leerEuroElem.innerText = ertragLeer.toFixed(2) + ' €';
+                        
                         if (kalkElem) {
-                            kalkElem.innerText = ertrag.toFixed(2) + ' €';
-                            const parentBlock = kalkElem.parentElement;
-                            if (ertrag >= 0) {
-                                parentBlock.classList.remove('text-red-600');
-                                parentBlock.classList.add('text-green-600');
+                            kalkElem.innerText = '= ' + ertragGesamt.toFixed(2) + ' €';
+                            if (ertragGesamt >= 0) {
+                                kalkElem.className = 'border-t border-gray-300 mt-0.5 pt-0.5 val-kalk text-green-600 font-black text-[11px]';
                             } else {
-                                parentBlock.classList.remove('text-green-600');
-                                parentBlock.classList.add('text-red-600');
+                                kalkElem.className = 'border-t border-gray-300 mt-0.5 pt-0.5 val-kalk text-red-600 font-black text-[11px]';
                             }
                         }
-
                     } else {
                         mBar.classList.add('hidden');
                     }
