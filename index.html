@@ -296,6 +296,30 @@
             </div>
         </div>
 
+        <div id="global-metrics-bar" class="w-full px-4 pb-3 hidden">
+            <div class="bg-gray-800 text-white rounded-xl p-3 flex justify-between items-center shadow-lg border border-gray-700">
+                <div class="flex flex-col text-blue-200">
+                    <span class="text-[10px] uppercase font-bold tracking-wider">🛣 Gesamt KM (Alle Autos)</span>
+                    <span id="glob-val-gesamt" class="text-xl font-black text-white">0.0 km</span>
+                </div>
+                <div class="flex flex-col text-center">
+                    <span class="text-[10px] text-gray-400 uppercase font-bold tracking-wider">💶 Gesamtkalkulation (Netto)</span>
+                    <div class="flex items-center justify-center gap-2 mt-0.5">
+                        <span id="glob-val-besetzt-euro" class="text-green-400 font-bold">0.00 €</span>
+                        <span class="text-gray-500 text-[10px]">(Besetzt)</span>
+                        <span class="text-gray-500 font-black">-</span>
+                        <span id="glob-val-leer-euro" class="text-red-400 font-bold">0.00 €</span>
+                        <span class="text-gray-500 text-[10px]">(Leer)</span>
+                        <span class="text-gray-500 font-black">=</span>
+                        <span id="glob-val-kalk" class="text-2xl font-black">0.00 €</span>
+                    </div>
+                </div>
+                <div class="flex flex-col text-right text-red-300">
+                    <span class="text-[10px] uppercase font-bold tracking-wider">⚠️ Leer-KM Gesamt</span>
+                    <span id="glob-val-leer" class="text-xl font-black text-red-400">0.0 km</span>
+                </div>
+            </div>
+        </div>
         <div class="view-switch-container">
             <div class="view-switch">
                 <button id="view-btn-planer" onclick="switchMainView('planer')" class="active">Planer</button>
@@ -622,6 +646,48 @@
     </div>
 
     <script>
+        function updateGlobalMetrics() {
+            let globTotalDist = 0;
+            let globEmptyKm = 0;
+
+            if (typeof instanceData === 'undefined' || instanceData.length === 0) return;
+
+            instanceData.forEach(inst => {
+                if (inst.totalDistanceKm > 0) {
+                    globTotalDist += inst.totalDistanceKm;
+                    globEmptyKm += (inst.emptyKm || 0);
+                }
+            });
+
+            const bar = document.getElementById('global-metrics-bar');
+            if (globTotalDist > 0) {
+                bar.classList.remove('hidden');
+                
+                const pBesetzt = appSettings.preisBesetzt !== undefined ? parseFloat(appSettings.preisBesetzt) : 1.50;
+                const pLeer = appSettings.preisLeer !== undefined ? parseFloat(appSettings.preisLeer) : 0.50;
+
+                const globBesetztKm = globTotalDist - globEmptyKm;
+                const ertragBesetzt = globBesetztKm * pBesetzt;
+                const ertragLeer = globEmptyKm * pLeer;
+                const ertragGesamt = ertragBesetzt - ertragLeer;
+
+                document.getElementById('glob-val-gesamt').innerText = globTotalDist.toFixed(1) + ' km';
+                document.getElementById('glob-val-leer').innerText = globEmptyKm.toFixed(1) + ' km';
+                document.getElementById('glob-val-besetzt-euro').innerText = ertragBesetzt.toFixed(2) + ' €';
+                document.getElementById('glob-val-leer-euro').innerText = ertragLeer.toFixed(2) + ' €';
+                
+                const kalkElem = document.getElementById('glob-val-kalk');
+                kalkElem.innerText = ertragGesamt.toFixed(2) + ' €';
+                if (ertragGesamt >= 0) {
+                    kalkElem.className = 'text-2xl font-black text-green-400';
+                } else {
+                    kalkElem.className = 'text-2xl font-black text-red-400';
+                }
+            } else {
+                bar.classList.add('hidden');
+            }
+        }
+
         // --- VIEW SWITCHER LOGIK ---
         function switchMainView(view) {
             const planner = document.getElementById('planner-section');
@@ -983,6 +1049,7 @@
                 tours, 
                 lastSavedDate: getTodayISO() 
             }));
+            updateGlobalMetrics();
         }
 
         function cleanupMemory() {
@@ -1460,6 +1527,7 @@
             let totalPureMin = saved ? saved.totalPureMin : 0;
             let totalWithBufferMin = saved ? saved.totalWithBufferMin : 0;
             let comparisonData = saved ? saved.comparisonData : null;
+            let currentEmptyKm = 0;
 
             const container = root.querySelector('.stopsContainer');
             const dateInput = root.querySelector('.tourDate');
@@ -1562,7 +1630,7 @@
                 
                 if (activeTabId === id) drawRouteOnMap(legsData, tourStops);
 
-                let emptyKm = 0;
+                currentEmptyKm = 0;
                 let lastAbreiseIdx = -1;
                 let firstAnreiseIdx = -1;
 
@@ -1607,7 +1675,7 @@
                     if (startIdx !== -1 && endIdx !== -1 && startIdx < endIdx) {
                         for (let i = startIdx; i < endIdx; i++) {
                             if (comparisonData[activeMode].legSummaries[i]) {
-                                emptyKm += comparisonData[activeMode].legSummaries[i].lengthInMeters / 1000;
+                                currentEmptyKm += comparisonData[activeMode].legSummaries[i].lengthInMeters / 1000;
                             }
                         }
                     }
@@ -1618,16 +1686,16 @@
                     if (totalDist > 0) {
                         mBar.classList.remove('hidden');
                         
-                        const besetztKm = totalDist - emptyKm;
+                        const besetztKm = totalDist - currentEmptyKm;
                         const pBesetzt = appSettings.preisBesetzt !== undefined ? parseFloat(appSettings.preisBesetzt) : 1.50;
                         const pLeer = appSettings.preisLeer !== undefined ? parseFloat(appSettings.preisLeer) : 0.50;
                         
                         const ertragBesetzt = besetztKm * pBesetzt;
-                        const ertragLeer = emptyKm * pLeer;
+                        const ertragLeer = currentEmptyKm * pLeer;
                         const ertragGesamt = ertragBesetzt - ertragLeer;
                         
                         mBar.querySelector('.val-gesamt').innerText = totalDist.toFixed(1) + ' km';
-                        mBar.querySelector('.val-leer').innerText = emptyKm.toFixed(1) + ' km';
+                        mBar.querySelector('.val-leer').innerText = currentEmptyKm.toFixed(1) + ' km';
                         
                         const besetztEuroElem = mBar.querySelector('.val-besetzt-euro');
                         const leerEuroElem = mBar.querySelector('.val-leer-euro');
@@ -1706,7 +1774,7 @@
             root.querySelector('.addStopButton').onclick = () => { tourStops.push({address: '', arrStr: '---', depStr: '---', type: 'abreise', name: ''}); render(); saveAll(); };
             optBtn.onclick = optimize;
             render();
-            return { id, get tourStops() { return tourStops; }, get legsData() { return legsData; }, get totalDistanceKm() { return totalDist; }, get pureT() { return totalPureMin; }, get totalT() { return totalWithBufferMin; }, get tourDate() { return dateInput.value; }, get startT() { return timeSelect.value; }, get comparisonData() { return comparisonData; }, addStopFromMemory(addr, name, type, pid) { tourStops.push({address: addr, name, type, patientId: pid, arrStr: '---', depStr: '---'}); render(); }, updateStopFromMemory(idx, addr, name, type, pid) { tourStops[idx] = {address: addr, name, type, patientId: pid, arrStr: '---', depStr: '---'}; render(); }, addManualStop(addr, name, type, lat, lon) { tourStops.push({address: addr, name, type, lat, lon, arrStr: '---', depStr: '---'}); render(); saveAll(); }, applyModeData };
+            return { id, get tourStops() { return tourStops; }, get legsData() { return legsData; }, get totalDistanceKm() { return totalDist; }, get emptyKm() { return currentEmptyKm; }, get pureT() { return totalPureMin; }, get totalT() { return totalWithBufferMin; }, get tourDate() { return dateInput.value; }, get startT() { return timeSelect.value; }, get comparisonData() { return comparisonData; }, addStopFromMemory(addr, name, type, pid) { tourStops.push({address: addr, name, type, patientId: pid, arrStr: '---', depStr: '---'}); render(); }, updateStopFromMemory(idx, addr, name, type, pid) { tourStops[idx] = {address: addr, name, type, patientId: pid, arrStr: '---', depStr: '---'}; render(); }, addManualStop(addr, name, type, lat, lon) { tourStops.push({address: addr, name, type, lat, lon, arrStr: '---', depStr: '---'}); render(); saveAll(); }, applyModeData };
         }
 
         function printCombinedDoc() {
@@ -2518,6 +2586,7 @@
                 saved.tours.forEach(t => addNewTab(t));
                 switchTab(saved.tours[0].id);
             } else { addNewTab(); }
+            updateGlobalMetrics();
         };
     </script>
 </body>
